@@ -39,6 +39,7 @@ from autolab import (
     replace_in_docx_bytes,
 )
 from assemble import add_solved_question_bytes
+from gemini import gemini_call, patch_docx_images, strip_fences
 from labshot import render_code_shot, render_terminal_shot
 from runner import LANGS, run_pair, run_single
 
@@ -126,6 +127,8 @@ async def replace(
     file: UploadFile = File(...),
     find: str = Form(...),
     replace: str = Form(""),
+    patch_images: bool = Form(False),
+    api_key: str = Form(""),
 ) -> Response:
     if not file.filename or not file.filename.lower().endswith(".docx"):
         raise HTTPException(400, "Please upload a .docx file.")
@@ -141,6 +144,25 @@ async def replace(
     except Exception as e:
         raise HTTPException(500, f"Failed to process document: {e}") from e
 
+    images_patched = images_scanned = 0
+    if patch_images:
+        key = api_key.strip() or _profile_key()
+        if not key:
+            raise HTTPException(
+                400,
+                "Screenshot patching needs a Gemini API key — paste one in the "
+                "form (free at aistudio.google.com) or save it in Profile.",
+            )
+        try:
+            out_bytes, images_patched, images_scanned = patch_docx_images(
+                out_bytes, find, replace, key
+            )
+        except urllib.error.HTTPError as e:
+            msg = e.read().decode("utf-8", errors="replace") if e.fp else str(e)
+            raise HTTPException(502, f"Gemini API error {e.code}: {msg[:200]}") from e
+        except Exception as e:
+            raise HTTPException(502, f"Image patching failed: {e}") from e
+
     base = Path(file.filename).stem or "document"
     out_name = f"{base}_modified.docx"
     return Response(
@@ -149,9 +171,18 @@ async def replace(
         headers={
             "Content-Disposition": f'attachment; filename="{out_name}"',
             "X-Replace-Count": str(count),
-            "Access-Control-Expose-Headers": "X-Replace-Count, Content-Disposition",
+            "X-Images-Patched": str(images_patched),
+            "X-Images-Scanned": str(images_scanned),
+            "Access-Control-Expose-Headers": (
+                "X-Replace-Count, X-Images-Patched, X-Images-Scanned, Content-Disposition"
+            ),
         },
     )
+
+
+def _profile_key() -> str:
+    """Gemini key from the desktop profile; empty string in web mode."""
+    return _load_profile().get("ai_api_key", "") if DESKTOP_MODE else ""
 
 
 @app.get("/api/capabilities")
@@ -159,8 +190,9 @@ async def capabilities() -> dict:
     """Tell the frontend what the running backend can do."""
     return {
         "desktop": DESKTOP_MODE,
-        "version": "0.6",
-        "solve": True,
+        "version": "0.7",
+        # ponytail: no compilers/subprocess sandbox on Vercel — solve is local-only
+        "solve": not os.environ.get("VERCEL"),
         "languages": list(LANGS),
         "data_dir": str(DATA_DIR) if DESKTOP_MODE else None,
         "generated_dir": str(GENERATED_DIR) if DESKTOP_MODE else None,
@@ -534,8 +566,8 @@ class RewriteIn(BaseModel):
     target_words: int | None = None
 
 
-def _claude_rewrite(text: str, instruction: str, target_words: int, api_key: str) -> str:
-    """Single-shot Claude call. Returns the rewritten text only."""
+def _ai_rewrite(text: str, instruction: str, target_words: int, api_key: str) -> str:
+    """Single-shot Gemini call. Returns the rewritten text only."""
     prompt = (
         "Rewrite the following text. Hard constraints:\n"
         f"- Aim for ~{target_words} words (within +/- 15%). This preserves document layout.\n"
@@ -545,44 +577,24 @@ def _claude_rewrite(text: str, instruction: str, target_words: int, api_key: str
         "Text:\n"
         f"{text}"
     )
-    payload = {
-        "model": "claude-sonnet-4-5",
-        "max_tokens": 1024,
-        "messages": [{"role": "user", "content": prompt}],
-    }
-    req = urllib.request.Request(
-        "https://api.anthropic.com/v1/messages",
-        data=json.dumps(payload).encode("utf-8"),
-        method="POST",
-        headers={
-            "x-api-key": api_key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-        },
-    )
-    with urllib.request.urlopen(req, timeout=45) as resp:
-        body = json.loads(resp.read())
-    for chunk in body.get("content", []):
-        if chunk.get("type") == "text":
-            return chunk["text"].strip()
-    return text
+    out, _ = gemini_call([{"text": prompt}], api_key=api_key, max_tokens=1024, timeout=45)
+    return out or text
 
 
 @app.post("/api/ai/rewrite")
 async def ai_rewrite(body: RewriteIn) -> dict:
     _require_desktop()
-    p = _load_profile()
-    key = p.get("ai_api_key", "")
+    key = _profile_key()
     if not key:
-        raise HTTPException(400, "No Anthropic API key configured. Add one in Profile.")
+        raise HTTPException(400, "No Gemini API key configured. Add one in Profile.")
     if not body.text.strip():
         raise HTTPException(400, "Text is empty.")
     target = body.target_words or max(1, len(body.text.split()))
     try:
-        new = _claude_rewrite(body.text, body.instruction or "", target, key)
+        new = _ai_rewrite(body.text, body.instruction or "", target, key)
     except urllib.error.HTTPError as e:
         msg = e.read().decode("utf-8", errors="replace") if e.fp else str(e)
-        raise HTTPException(502, f"Anthropic API error {e.code}: {msg[:200]}") from e
+        raise HTTPException(502, f"Gemini API error {e.code}: {msg[:200]}") from e
     except Exception as e:
         raise HTTPException(502, f"AI call failed: {e}") from e
     return {
@@ -683,7 +695,7 @@ _CODEGEN_SYSTEM = (
 )
 
 
-def _claude_generate_code(body: GenerateCodeIn, api_key: str) -> dict:
+def _ai_generate_code(body: GenerateCodeIn, api_key: str) -> dict:
     prompt = (
         f"Project/experiment context: {body.project_title}\n"
         f"Question to solve: {body.question}\n"
@@ -696,53 +708,32 @@ def _claude_generate_code(body: GenerateCodeIn, api_key: str) -> dict:
         '{"mode":"single","code":"..."}\n'
         '{"mode":"pair","server_code":"...","client_code":"..."}\n'
     )
-    payload = {
-        "model": "claude-sonnet-4-6",
-        "max_tokens": 4000,
-        "system": _CODEGEN_SYSTEM,
-        "messages": [{"role": "user", "content": prompt}],
-    }
-    req = urllib.request.Request(
-        "https://api.anthropic.com/v1/messages",
-        data=json.dumps(payload).encode("utf-8"),
-        method="POST",
-        headers={
-            "x-api-key": api_key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-        },
+    text, _ = gemini_call(
+        [{"text": prompt}],
+        api_key=api_key,
+        system=_CODEGEN_SYSTEM,
+        max_tokens=4000,
+        timeout=90,
+        force_json=True,
     )
-    with urllib.request.urlopen(req, timeout=90) as resp:
-        body_json = json.loads(resp.read())
-    text = ""
-    for chunk in body_json.get("content", []):
-        if chunk.get("type") == "text":
-            text = chunk["text"]
-            break
-    text = text.strip()
-    if text.startswith("```"):
-        text = text.strip("`")
-        if text.startswith("json"):
-            text = text[4:]
-    return json.loads(text.strip())
+    return json.loads(strip_fences(text))
 
 
 @app.post("/api/ai/generate-code")
 async def ai_generate_code(body: GenerateCodeIn) -> dict:
     _require_desktop()
-    p = _load_profile()
-    key = p.get("ai_api_key", "")
+    key = _profile_key()
     if not key:
-        raise HTTPException(400, "No Anthropic API key configured. Add one in Profile.")
+        raise HTTPException(400, "No Gemini API key configured. Add one in Profile.")
     if not body.question.strip():
         raise HTTPException(400, "Question is empty.")
     if body.language not in LANGS:
         raise HTTPException(400, f"language must be one of {LANGS}")
     try:
-        result = _claude_generate_code(body, key)
+        result = _ai_generate_code(body, key)
     except urllib.error.HTTPError as e:
         msg = e.read().decode("utf-8", errors="replace") if e.fp else str(e)
-        raise HTTPException(502, f"Anthropic API error {e.code}: {msg[:200]}") from e
+        raise HTTPException(502, f"Gemini API error {e.code}: {msg[:200]}") from e
     except (json.JSONDecodeError, KeyError) as e:
         raise HTTPException(502, f"AI returned malformed code payload: {e}") from e
     except Exception as e:

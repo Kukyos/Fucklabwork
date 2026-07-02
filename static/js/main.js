@@ -168,7 +168,7 @@ function commands() {
   ];
   if (state.capabilities.desktop) {
     cmds.push({ label: "Add a register number", meta: "profile", run: () => { showView("profile"); setTimeout(() => $("#urk-add-input").focus(), 50); }});
-    cmds.push({ label: "Set Anthropic API key", meta: "profile", run: () => { showView("profile"); setTimeout(() => $("#api-key").focus(), 50); }});
+    cmds.push({ label: "Set Gemini API key", meta: "profile", run: () => { showView("profile"); setTimeout(() => $("#api-key").focus(), 50); }});
   }
   return cmds;
 }

@@ -436,7 +436,7 @@ async function onGenerateCode() {
   btn.disabled = true;
   const orig = btn.textContent;
   btn.textContent = "Generating…";
-  setSolveStatus("Asking Claude…", "");
+  setSolveStatus("Asking Gemini…", "");
   try {
     const r = await api.generateCode({
       project_title: $("#sq-title").value.trim()

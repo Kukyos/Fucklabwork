@@ -39,6 +39,11 @@ export function initTools(ctx) {
     }
   });
 
+  const imagesBox = $("#rep-images");
+  imagesBox.addEventListener("change", () => {
+    $("#rep-key-field").hidden = !imagesBox.checked;
+  });
+
   $("#replace-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const status = $("#rep-status");
@@ -48,18 +53,21 @@ export function initTools(ctx) {
     const f = fileInput.files[0];
     const find = $("#rep-find").value;
     const replace = $("#rep-replace").value;
+    const patchImages = imagesBox.checked;
 
     if (!f) { status.textContent = "Pick a .docx first."; status.className = "hint is-err"; return; }
     if (!find) { status.textContent = "Find can't be empty."; status.className = "hint is-err"; return; }
 
-    status.textContent = "Working…";
+    status.textContent = patchImages ? "Working… (screenshot patching can take a minute)" : "Working…";
     try {
-      const res = await api.replace(f, find, replace);
+      const res = await api.replace(f, find, replace, patchImages, $("#rep-key").value.trim());
       const count = parseInt(res.headers.get("X-Replace-Count") || "0", 10);
+      const imgs = parseInt(res.headers.get("X-Images-Patched") || "0", 10);
       await downloadResponse(res, f.name.replace(/\.docx$/i, "_modified.docx"));
-      status.textContent = count === 0
-        ? "No matches found (file saved anyway)."
-        : `Replaced ${count} occurrence${count === 1 ? "" : "s"}.`;
+      const parts = [];
+      parts.push(count === 0 ? "No text matches" : `Replaced ${count} occurrence${count === 1 ? "" : "s"}`);
+      if (patchImages) parts.push(`patched ${imgs} screenshot${imgs === 1 ? "" : "s"}`);
+      status.textContent = parts.join(", ") + ".";
       status.className = "hint is-ok";
     } catch (err) {
       status.textContent = err.message;
