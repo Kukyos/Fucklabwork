@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="light" />
+  <meta name="theme-color" content="#ffffff" />
+  <title>AutoLAB</title>
+  <link rel="icon" href="/static/icon.ico" />
+  <link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+  <div class="app">
+
+    <aside class="sidebar" aria-label="Primary">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">A</span>
+        <span class="brand-name">AutoLAB</span>
+        <span class="brand-tag">v0.6</span>
+      </div>
+
+      <nav class="nav" role="tablist" aria-label="Sections">
+        <button class="nav-item is-active" data-view="documents" role="tab" aria-selected="true">
+          <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 3h9l5 5v12.5a1.5 1.5 0 0 1-1.5 1.5h-12A1.5 1.5 0 0 1 5 20.5V4.5A1.5 1.5 0 0 1 6.5 3H6Zm9 1v4a1 1 0 0 0 1 1h4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+            <path d="M9 13h8M9 17h6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <span class="nav-label">Documents</span>
+          <kbd class="kbd">1</kbd>
+        </button>
+        <button class="nav-item" data-view="templates" role="tab" aria-selected="false">
+          <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3.5" y="3.5" width="7.5" height="7.5" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <rect x="13" y="3.5" width="7.5" height="7.5" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <rect x="3.5" y="13" width="7.5" height="7.5" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <rect x="13" y="13" width="7.5" height="7.5" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+          </svg>
+          <span class="nav-label">Templates</span>
+          <kbd class="kbd">2</kbd>
+        </button>
+        <button class="nav-item" data-view="tools" role="tab" aria-selected="false">
+          <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M14.5 4a3.5 3.5 0 0 1 4.5 4.5l-9 9-4 1 1-4z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+          </svg>
+          <span class="nav-label">Tools</span>
+          <kbd class="kbd">3</kbd>
+        </button>
+        <button class="nav-item" data-view="profile" role="tab" aria-selected="false">
+          <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="8.5" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M4.5 20c.6-3.5 4-6 7.5-6s6.9 2.5 7.5 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <span class="nav-label">Profile</span>
+          <kbd class="kbd">4</kbd>
+        </button>
+      </nav>
+
+      <div class="sidebar-foot">
+        <button class="cmd-trigger" id="cmd-trigger">
+          <svg viewBox="0 0 24 24" aria-hidden="true" class="cmd-icon">
+            <circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <path d="m16 16 4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <span>Search</span>
+          <kbd class="kbd">⌘K</kbd>
+        </button>
+        <div class="mode-pill" id="mode-pill">Web</div>
+      </div>
+    </aside>
+
+    <header class="topbar">
+      <button class="menu-btn" id="menu-btn" aria-label="Open menu">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+      <div class="crumbs" id="crumbs">
+        <span class="crumb">Documents</span>
+      </div>
+      <div class="topbar-actions" id="topbar-actions">
+        <button class="icon-btn" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+          <svg class="moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+          <svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <button class="panel-btn" id="panel-btn" aria-label="Open inspector">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18v14H3zM15 5v14" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+      </button>
+    </header>
+
+    <main class="canvas" id="canvas">
+
+      <!-- DOCUMENTS ----------------------------------------------------- -->
+      <section class="view is-active" data-view="documents">
+        <div class="docs-empty" id="docs-empty">
+          <div class="docs-empty-art" aria-hidden="true">
+            <div class="art-doc"></div>
+            <div class="art-doc art-doc--back"></div>
+          </div>
+          <h1>Open a document</h1>
+          <p>Drop a <code>.docx</code> anywhere on this window, or pick one. Paragraphs become editable, tables stay tables, layout stays put.</p>
+          <div class="docs-empty-actions">
+            <button class="btn-primary" id="docs-pick">Browse files</button>
+            <span class="hint">or drop here</span>
+          </div>
+          <input type="file" id="docs-file" accept=".docx" hidden />
+        </div>
+
+        <div class="organizer" id="organizer" hidden>
+          <header class="view-head org-head">
+            <div>
+              <h1>Documents</h1>
+              <p class="lede">Open one to edit, generate a new record, or start from blank.</p>
+            </div>
+            <div class="org-actions">
+              <button class="btn-primary" id="org-new">New blank</button>
+              <button class="btn-ghost" id="org-upload">Upload .docx</button>
+              <input type="file" id="org-upload-input" accept=".docx" hidden />
+            </div>
+          </header>
+
+          <div class="org-tabs">
+            <button class="org-tab is-active" data-source="generated" type="button">
+              <span>Generated</span>
+              <span class="org-tab-count" id="org-gen-count">0</span>
+            </button>
+            <button class="org-tab" data-source="folder" type="button" id="org-folder-tab">
+              <span id="org-folder-label">Folder</span>
+              <span class="org-tab-count" id="org-folder-count" hidden>0</span>
+            </button>
+            <button class="org-tab-pick" id="org-pick-folder" type="button" title="Pick a folder">Browse…</button>
+          </div>
+
+          <div class="org-current-folder" id="org-current-folder" hidden></div>
+
+          <div class="org-list" id="org-list"></div>
+        </div>
+
+        <div class="docs-editor" id="docs-editor" hidden>
+          <div class="doc-page" id="doc-blocks"></div>
+        </div>
+      </section>
+
+      <!-- TEMPLATES ----------------------------------------------------- -->
+      <section class="view" data-view="templates" hidden>
+        <header class="view-head">
+          <div>
+            <h1>Templates</h1>
+            <p class="lede">Pick a clean record skeleton. Fill it from the inspector.</p>
+          </div>
+        </header>
+        <div class="tpl-grid" id="tpl-grid"></div>
+      </section>
+
+      <!-- TOOLS --------------------------------------------------------- -->
+      <section class="view" data-view="tools" hidden>
+        <header class="view-head">
+          <div>
+            <h1>Tools</h1>
+            <p class="lede">Targeted ops on a document. Pick one — its controls appear on the right.</p>
+          </div>
+        </header>
+        <div class="tool-list">
+          <article class="tool-card" data-tool="replace">
+            <div class="tool-head">
+              <h3>Find &amp; replace</h3>
+              <span class="tag tag-stable">Stable</span>
+            </div>
+            <p class="tool-desc">Swap text across an entire <code>.docx</code> — body, tables, headers, footers. Survives Word's run-splitting so multi-run matches still go through.</p>
+          </article>
+
+          <article class="tool-card is-soon">
+            <div class="tool-head">
+              <h3>Solve question</h3>
+              <span class="tag tag-stable">Stable</span>
+            </div>
+            <p class="tool-desc">Runs your code for real, renders terminal + editor screenshots (URK included), and inserts everything into the record. Lives in <strong>Documents</strong> — open a .docx and use the panel.</p>
+          </article>
+        </div>
+      </section>
+
+      <!-- PROFILE ------------------------------------------------------- -->
+      <section class="view" data-view="profile" hidden>
+        <header class="view-head">
+          <div>
+            <h1>Profile</h1>
+            <p class="lede"><span class="when-desktop">Local-only data: register numbers, preferences, API key.</span><span class="when-web">Profile is desktop-only — your data lives on your machine, not on a server. Run AutoLAB.exe to access this.</span></p>
+          </div>
+        </header>
+
+        <div class="when-web web-only-callout">
+          <div class="callout">
+            <h3>Why desktop-only?</h3>
+            <p>Saved data and API keys belong on your machine — never on a server we run. Download the desktop build for the full experience.</p>
+          </div>
+        </div>
+
+        <div class="profile-grid when-desktop">
+          <article class="card">
+            <div class="card-head">
+              <h3>Register numbers</h3>
+              <span class="card-sub">Saved on this device</span>
+            </div>
+            <div class="urks-chips" id="urks-chips"></div>
+            <form id="urk-add" class="inline-form" autocomplete="off">
+              <input id="urk-add-input" placeholder="URK24CS____" spellcheck="false" autocapitalize="off" />
+              <button class="btn-primary">Add</button>
+            </form>
+          </article>
+
+          <article class="card">
+            <div class="card-head">
+              <h3>Defaults</h3>
+              <span class="card-sub">Pre-filled across forms</span>
+            </div>
+            <div class="field">
+              <label for="pref-course">Default course title</label>
+              <input id="pref-course" placeholder="Computer Networks Lab" />
+            </div>
+            <div class="form-actions">
+              <button class="btn-ghost" id="pref-save">Save</button>
+              <span class="hint" id="pref-status"></span>
+            </div>
+          </article>
+
+          <article class="card card-ai">
+            <div class="card-head">
+              <h3>AI rewrite</h3>
+              <span class="card-sub" id="ai-key-state">No key set</span>
+            </div>
+            <p class="card-desc">Block-level rewriting uses the Claude API. Your key is stored only in <code id="profile-path">%APPDATA%\AutoLAB\profile.json</code>.</p>
+            <div class="field">
+              <label for="api-key">Anthropic API key</label>
+              <input id="api-key" type="password" placeholder="sk-ant-…" autocomplete="off" spellcheck="false" />
+            </div>
+            <div class="form-actions">
+              <button class="btn-ghost" id="api-key-save">Save key</button>
+              <button class="btn-ghost" id="api-key-clear">Clear</button>
+              <span class="hint" id="api-key-status"></span>
+            </div>
+          </article>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- ============== RIGHT INSPECTOR PANEL ============== -->
+    <aside class="right-panel" id="right-panel" aria-label="Inspector">
+
+      <!-- Documents inspector -->
+      <div class="rp-view is-active" data-view="documents">
+        <section class="rp-section" id="rp-docs-empty">
+          <header class="rp-head"><h3>Document</h3></header>
+          <p class="rp-empty">Open a .docx to see actions here.</p>
+        </section>
+
+        <section class="rp-section" id="rp-docs-active" hidden>
+          <header class="rp-head">
+            <h3 id="rp-doc-head-name">Document</h3>
+            <span class="rp-meta" id="rp-doc-stats">— blocks</span>
+          </header>
+          <div class="mode-switch" id="doc-mode-switch" role="tablist" aria-label="View mode">
+            <button class="mode-btn is-active" data-mode="edit" role="tab" aria-selected="true">Edit</button>
+            <button class="mode-btn" data-mode="preview" role="tab" aria-selected="false">Preview</button>
+          </div>
+          <div class="rp-actions">
+            <button class="btn-primary" id="rp-save">Save &amp; download</button>
+            <button class="btn-ghost" id="rp-ai-all">✦ Rewrite all (AI)</button>
+            <button class="btn-ghost" id="rp-close">Close document</button>
+          </div>
+        </section>
+
+        <section class="rp-section" id="rp-docs-saveas" hidden>
+          <header class="rp-head"><h3>Save to disk</h3></header>
+          <form class="rp-form" id="saveas-form" autocomplete="off">
+            <div class="field">
+              <label for="saveas-name">Filename</label>
+              <input id="saveas-name" placeholder="my-record.docx" spellcheck="false" autocapitalize="off" />
+            </div>
+            <div class="field">
+              <label for="saveas-folder">Folder</label>
+              <select id="saveas-folder">
+                <option value="generated">Generated (default)</option>
+                <option value="current" id="saveas-current-opt" hidden>Current location</option>
+              </select>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn-primary">Save</button>
+              <span class="hint" id="saveas-status"></span>
+            </div>
+          </form>
+        </section>
+
+        <section class="rp-section" id="rp-docs-addq" hidden>
+          <header class="rp-head"><h3>Add question</h3></header>
+          <form class="rp-form" id="addq-form" autocomplete="off">
+            <div class="field-row">
+              <div class="field">
+                <label for="aq-num">Number</label>
+                <input id="aq-num" placeholder="11" spellcheck="false" autocapitalize="off" />
+              </div>
+              <div class="field">
+                <label for="aq-title">Title</label>
+                <input id="aq-title" placeholder="ipconfig /flushdns" required />
+              </div>
+            </div>
+            <div class="field">
+              <label for="aq-desc">Description</label>
+              <textarea id="aq-desc" rows="3" placeholder="What this question does. A paragraph or two."></textarea>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn-primary">Append question</button>
+              <span class="hint" id="aq-status"></span>
+            </div>
+          </form>
+        </section>
+
+        <section class="rp-section" id="rp-docs-solve" hidden>
+          <header class="rp-head">
+            <h3>Solve question</h3>
+            <span class="rp-meta">run · shoot · insert</span>
+          </header>
+          <form class="rp-form" id="solve-form" autocomplete="off">
+            <div class="field-row">
+              <div class="field">
+                <label for="sq-num">Number</label>
+                <input id="sq-num" placeholder="3" spellcheck="false" autocapitalize="off" />
+              </div>
+              <div class="field">
+                <label for="sq-lang">Language</label>
+                <select id="sq-lang">
+                  <option value="python">Python</option>
+                  <option value="c">C</option>
+                  <option value="cpp">C++</option>
+                  <option value="java">Java</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label for="sq-title">Title</label>
+              <input id="sq-title" placeholder="TCP Echo Server and Client" required />
+            </div>
+            <div class="field">
+              <label for="sq-question">Question</label>
+              <textarea id="sq-question" rows="3" placeholder="What the program must do. Also becomes the description in the record."></textarea>
+            </div>
+            <div class="field">
+              <label for="sq-mode">Program type</label>
+              <select id="sq-mode">
+                <option value="single">Single program</option>
+                <option value="pair">Server + client pair</option>
+              </select>
+            </div>
+            <button type="button" class="btn-ghost when-desktop" id="sq-generate">✦ Generate code (AI)</button>
+            <div class="field" id="sq-code-wrap">
+              <label for="sq-code">Code</label>
+              <textarea id="sq-code" rows="8" spellcheck="false" class="code-input" placeholder="Paste code, or generate it above."></textarea>
+            </div>
+            <div class="field sq-pair" hidden>
+              <label for="sq-server">Server code</label>
+              <textarea id="sq-server" rows="6" spellcheck="false" class="code-input"></textarea>
+            </div>
+            <div class="field sq-pair" hidden>
+              <label for="sq-client">Client code</label>
+              <textarea id="sq-client" rows="6" spellcheck="false" class="code-input"></textarea>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label for="sq-urk">URK in screenshot</label>
+                <input id="sq-urk" placeholder="URK24CS____" spellcheck="false" autocapitalize="off" />
+              </div>
+              <div class="field">
+                <label for="sq-urkmode">URK style</label>
+                <select id="sq-urkmode">
+                  <option value="line">echo line</option>
+                  <option value="title">window title</option>
+                  <option value="prompt">prompt path</option>
+                  <option value="none">off</option>
+                </select>
+              </div>
+            </div>
+            <label class="check"><input type="checkbox" id="sq-codeshot" /> Also add a VS Code shot of the code</label>
+            <div class="form-actions">
+              <button type="submit" class="btn-primary" id="sq-run">Run &amp; insert</button>
+              <span class="hint" id="sq-status"></span>
+            </div>
+          </form>
+        </section>
+
+        <section class="rp-section" id="rp-docs-block" hidden>
+          <header class="rp-head">
+            <h3>Selected block</h3>
+            <span class="rp-meta" id="rp-block-id">—</span>
+          </header>
+          <div class="rp-info" id="rp-block-info">
+            <div class="rp-info-row"><span class="k">Location</span><span class="v" id="rp-bi-loc">—</span></div>
+            <div class="rp-info-row"><span class="k">Kind</span><span class="v" id="rp-bi-kind">—</span></div>
+            <div class="rp-info-row"><span class="k">Style</span><span class="v" id="rp-bi-style">—</span></div>
+            <div class="rp-info-row"><span class="k">Words</span><span class="v" id="rp-bi-words">—</span></div>
+            <div class="rp-info-row"><span class="k">Chars</span><span class="v" id="rp-bi-chars">—</span></div>
+          </div>
+          <div class="rp-actions">
+            <button class="btn-ghost" id="rp-block-ai">✦ Rewrite with AI</button>
+            <button class="btn-ghost" id="rp-block-reset">Reset to original</button>
+          </div>
+        </section>
+      </div>
+
+      <!-- Templates inspector -->
+      <div class="rp-view" data-view="templates" hidden>
+        <section class="rp-section" id="rp-tpl-empty">
+          <header class="rp-head"><h3>Template</h3></header>
+          <p class="rp-empty">Pick a template card to fill it in.</p>
+        </section>
+        <section class="rp-section" id="rp-tpl-fill" hidden>
+          <header class="rp-head">
+            <h3 id="rp-tpl-title">Fill template</h3>
+          </header>
+          <form id="tpl-form" class="rp-form" autocomplete="off">
+            <div class="field">
+              <label for="tpl-course">Course title</label>
+              <input id="tpl-course" name="course_title" placeholder="Computer Networks Lab" />
+            </div>
+            <div class="field">
+              <label for="tpl-reg">Register number</label>
+              <input id="tpl-reg" name="register_number" placeholder="URK24CS____" />
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label for="tpl-exno">Ex.No</label>
+                <input id="tpl-exno" name="ex_no" placeholder="1" />
+              </div>
+              <div class="field">
+                <label for="tpl-date">Date</label>
+                <input id="tpl-date" name="date" placeholder="13.06.2026" />
+              </div>
+            </div>
+            <div class="field">
+              <label for="tpl-title">Title</label>
+              <input id="tpl-title" name="title" placeholder="Basic Network Troubleshooting Commands" />
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn-primary">Generate .docx</button>
+              <span class="hint" id="tpl-status"></span>
+            </div>
+          </form>
+        </section>
+      </div>
+
+      <!-- Tools inspector -->
+      <div class="rp-view" data-view="tools" hidden>
+        <section class="rp-section" id="rp-tool-empty">
+          <header class="rp-head"><h3>Tool</h3></header>
+          <p class="rp-empty">Pick a tool card to use it.</p>
+        </section>
+        <section class="rp-section" id="rp-tool-replace" hidden>
+          <header class="rp-head"><h3>Find &amp; replace</h3></header>
+          <form id="replace-form" class="rp-form" autocomplete="off">
+            <div class="field">
+              <label>Document</label>
+              <div class="drop-mini">
+                <input type="file" id="rep-file" accept=".docx" required />
+                <span class="drop-mini-label" id="rep-file-label">Choose a .docx…</span>
+              </div>
+            </div>
+            <div class="field">
+              <label for="rep-find">Find</label>
+              <input id="rep-find" name="find" value="URK24CS1021" spellcheck="false" autocapitalize="off" required />
+            </div>
+            <div class="field">
+              <label for="rep-replace">Replace with</label>
+              <input id="rep-replace" name="replace" placeholder="URK24CS____" spellcheck="false" autocapitalize="off" />
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn-primary">Run</button>
+              <output class="hint" id="rep-status"></output>
+            </div>
+          </form>
+        </section>
+      </div>
+
+      <!-- Profile inspector -->
+      <div class="rp-view" data-view="profile" hidden>
+        <section class="rp-section">
+          <header class="rp-head"><h3>Data</h3></header>
+          <div class="rp-info">
+            <div class="rp-info-row"><span class="k">Mode</span><span class="v" id="rp-pf-mode">—</span></div>
+            <div class="rp-info-row"><span class="k">Profile</span><span class="v" id="rp-pf-path">—</span></div>
+            <div class="rp-info-row"><span class="k">Saved URKs</span><span class="v" id="rp-pf-urks">0</span></div>
+            <div class="rp-info-row"><span class="k">AI key</span><span class="v" id="rp-pf-ai">No</span></div>
+          </div>
+        </section>
+      </div>
+
+    </aside>
+
+    <!-- Command palette -->
+    <div class="palette" id="palette" hidden>
+      <div class="palette-backdrop" data-palette-close></div>
+      <div class="palette-card" role="dialog" aria-label="Command palette">
+        <input class="palette-input" id="palette-input" type="text" placeholder="Jump to a section, or run a command…" autocomplete="off" />
+        <ul class="palette-list" id="palette-list"></ul>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" hidden></div>
+
+    <div class="global-drop" id="global-drop" hidden>
+      <div class="global-drop-card">
+        <h2>Drop to open</h2>
+        <p>Releases a .docx into the Documents editor.</p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/static/js/main.js"></script>
+</body>
+</html>

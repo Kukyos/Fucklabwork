@@ -1,0 +1,9 @@
+__pycache__/
+build/
+dist/
+shot_*.png
+EX_solved_test.docx
+fable5firstmessage/
+_preview.py
+*.pyc
+.claude/
