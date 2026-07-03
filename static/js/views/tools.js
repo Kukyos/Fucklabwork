@@ -69,6 +69,7 @@ export function initTools(ctx) {
       if (patchImages) parts.push(`patched ${imgs} screenshot${imgs === 1 ? "" : "s"}`);
       status.textContent = parts.join(", ") + ".";
       status.className = "hint is-ok";
+      if (patchImages) document.dispatchEvent(new Event("autolab:refresh-account"));
     } catch (err) {
       status.textContent = err.message;
       status.className = "hint is-err";

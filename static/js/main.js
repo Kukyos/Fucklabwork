@@ -1,6 +1,8 @@
 // AutoLAB front-end shell — router, command palette, drag overlay, toast.
 
 import { api } from "./api.js";
+import { initBilling } from "./billing.js";
+import { initAccount } from "./views/account.js";
 import { initDocuments } from "./views/documents.js";
 import { initTemplates } from "./views/templates.js";
 import { initTools } from "./views/tools.js";
@@ -268,6 +270,15 @@ window.addEventListener("drop", (e) => {
   document.dispatchEvent(new CustomEvent("autolab:open-file", { detail: { file: f } }));
 });
 
+// ---------- disclaimer ------------------------------------------------
+try {
+  if (!localStorage.getItem("autolab-disclaimer-ok")) $("#disclaimer").hidden = false;
+} catch {}
+$("#disclaimer-x").addEventListener("click", () => {
+  $("#disclaimer").hidden = true;
+  try { localStorage.setItem("autolab-disclaimer-ok", "1"); } catch {}
+});
+
 // ---------- init views ----------------------------------------------
 initDocuments({ state, toast });
 initTemplates({ state, toast });
@@ -280,6 +291,14 @@ window.__autolab_show_organizer = showOrganizer;
 // ---------- boot -----------------------------------------------------
 (async () => {
   try { state.capabilities = await api.capabilities(); } catch {}
+
+  // Billing/account: web-only — desktop is the bring-your-own-key world.
+  if (!state.capabilities.desktop) {
+    try {
+      const b = await initBilling();
+      if (b.config.enabled) initAccount({ state, toast });
+    } catch {}
+  }
 
   if (state.capabilities.desktop) {
     document.body.classList.add("is-desktop");

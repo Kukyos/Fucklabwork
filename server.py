@@ -27,11 +27,12 @@ import urllib.request
 from pathlib import Path
 
 from docx import Document
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+import billing
 from autolab import (
     apply_block_edits_bytes,
     extract_blocks,
@@ -122,6 +123,17 @@ async def index() -> FileResponse:
     return FileResponse(STATIC / "index.html")
 
 
+# Legal pages — Razorpay activation requires these to exist on the site.
+def _legal_route(page: str):
+    async def _serve() -> FileResponse:
+        return FileResponse(STATIC / "legal" / f"{page}.html")
+    return _serve
+
+
+for _page in ("terms", "privacy", "refunds", "contact"):
+    app.get(f"/{_page}", include_in_schema=False)(_legal_route(_page))
+
+
 @app.post("/api/replace")
 async def replace(
     file: UploadFile = File(...),
@@ -129,6 +141,7 @@ async def replace(
     replace: str = Form(""),
     patch_images: bool = Form(False),
     api_key: str = Form(""),
+    authorization: str = Header(""),
 ) -> Response:
     if not file.filename or not file.filename.lower().endswith(".docx"):
         raise HTTPException(400, "Please upload a .docx file.")
@@ -146,21 +159,17 @@ async def replace(
 
     images_patched = images_scanned = 0
     if patch_images:
-        key = api_key.strip() or _profile_key()
-        if not key:
-            raise HTTPException(
-                400,
-                "Screenshot patching needs a Gemini API key — paste one in the "
-                "form (free at aistudio.google.com) or save it in Profile.",
-            )
+        key, charged = _paid_key(authorization, api_key, "patch_screens")
         try:
             out_bytes, images_patched, images_scanned = patch_docx_images(
                 out_bytes, find, replace, key
             )
         except urllib.error.HTTPError as e:
+            _refund(charged, "patch_screens")
             msg = e.read().decode("utf-8", errors="replace") if e.fp else str(e)
             raise HTTPException(502, f"Gemini API error {e.code}: {msg[:200]}") from e
         except Exception as e:
+            _refund(charged, "patch_screens")
             raise HTTPException(502, f"Image patching failed: {e}") from e
 
     base = Path(file.filename).stem or "document"
@@ -185,12 +194,162 @@ def _profile_key() -> str:
     return _load_profile().get("ai_api_key", "") if DESKTOP_MODE else ""
 
 
+# --- billing / credits --------------------------------------------------
+
+def _require_billing() -> None:
+    if not billing.enabled():
+        raise HTTPException(503, "Payments are not configured on this server.")
+
+
+def _auth(authorization: str) -> dict:
+    try:
+        return billing.auth_user(authorization)
+    except ValueError as e:
+        raise HTTPException(401, str(e)) from e
+
+
+def _paid_key(authorization: str, api_key: str, op: str) -> tuple[str, str]:
+    """Resolve which Gemini key a paid op runs on.
+
+    BYO key (form field, or the desktop profile) -> free, no account needed.
+    Otherwise the op needs a signed-in user with enough credits: we spend
+    upfront and the caller refunds via _refund() if the op then fails.
+    Returns (gemini_key, charged_user_id) — user_id is "" when free.
+    """
+    key = api_key.strip() or _profile_key()
+    if key:
+        return key, ""
+    if not billing.enabled():
+        raise HTTPException(
+            400,
+            "This needs a Gemini API key — free at aistudio.google.com.",
+        )
+    user = _auth(authorization)
+    if not billing.SERVER_GEMINI_KEY:
+        raise HTTPException(503, "Server AI key is not configured.")
+    price = billing.PRICES[op]
+    try:
+        left = billing.spend(user["id"], price, op)
+    except Exception as e:
+        raise HTTPException(502, f"Credit check failed: {e}") from e
+    if left < 0:
+        raise HTTPException(
+            402, f"Not enough credits — this costs ₹{price}. Top up in Account."
+        )
+    return billing.SERVER_GEMINI_KEY, user["id"]
+
+
+def _refund(user_id: str, op: str) -> None:
+    if not user_id:
+        return
+    try:
+        billing.credit(user_id, billing.PRICES[op], f"refund:{op}")
+    except Exception:
+        # ponytail: a lost refund shows as a gap in the ledger — handle by hand
+        # if a user ever reports one.
+        pass
+
+
+@app.get("/api/billing/config")
+async def billing_config() -> dict:
+    """Public billing facts the frontend needs. No secrets here."""
+    return {
+        "enabled": billing.enabled(),
+        "supabase_url": billing.SUPABASE_URL,
+        "supabase_anon_key": billing.SUPABASE_ANON_KEY,
+        "razorpay_key_id": billing.RAZORPAY_KEY_ID,
+        "prices": billing.PRICES,
+        "packs": billing.PACKS,
+        "min_topup": billing.MIN_TOPUP,
+        "max_topup": billing.MAX_TOPUP,
+    }
+
+
+@app.get("/api/me")
+async def me(authorization: str = Header("")) -> dict:
+    _require_billing()
+    user = _auth(authorization)
+    try:
+        bal = billing.balance(user["id"])
+    except Exception as e:
+        raise HTTPException(502, f"Could not read balance: {e}") from e
+    return {"email": user["email"], "balance": bal}
+
+
+class OrderIn(BaseModel):
+    amount: int
+
+
+@app.post("/api/pay/order")
+async def pay_order(body: OrderIn, authorization: str = Header("")) -> dict:
+    _require_billing()
+    user = _auth(authorization)
+    if not (billing.MIN_TOPUP <= body.amount <= billing.MAX_TOPUP):
+        raise HTTPException(
+            400, f"Top-up must be ₹{billing.MIN_TOPUP}–₹{billing.MAX_TOPUP}."
+        )
+    try:
+        order = billing.rzp_create_order(body.amount, user["id"])
+    except Exception as e:
+        raise HTTPException(502, f"Could not create payment order: {e}") from e
+    return {
+        "order_id": order["id"],
+        "amount": order["amount"],
+        "currency": "INR",
+        "key_id": billing.RAZORPAY_KEY_ID,
+        "email": user["email"],
+    }
+
+
+class VerifyIn(BaseModel):
+    order_id: str
+    payment_id: str
+    signature: str
+
+
+@app.post("/api/pay/verify")
+async def pay_verify(body: VerifyIn, authorization: str = Header("")) -> dict:
+    """Instant crediting right after checkout; the webhook is the backup."""
+    _require_billing()
+    user = _auth(authorization)
+    if not billing.verify_payment_sig(body.order_id, body.payment_id, body.signature):
+        raise HTTPException(400, "Payment signature check failed.")
+    try:
+        order = billing.rzp_get_order(body.order_id)
+    except Exception as e:
+        raise HTTPException(502, f"Could not fetch the order: {e}") from e
+    if (order.get("notes") or {}).get("user_id") != user["id"]:
+        raise HTTPException(403, "This order belongs to a different account.")
+    rupees = int(order["amount"]) // 100
+    try:
+        bal = billing.credit(user["id"], rupees, "topup", ref=body.payment_id)
+    except Exception as e:
+        raise HTTPException(502, f"Payment ok but crediting failed: {e}") from e
+    return {"balance": bal, "added": rupees}
+
+
+@app.post("/api/pay/webhook")
+async def pay_webhook(request: Request) -> dict:
+    body = await request.body()
+    sig = request.headers.get("X-Razorpay-Signature", "")
+    if not billing.verify_webhook_sig(body, sig):
+        raise HTTPException(400, "Bad webhook signature.")
+    event = json.loads(body)
+    if event.get("event") == "payment.captured":
+        p = event["payload"]["payment"]["entity"]
+        uid = (p.get("notes") or {}).get("user_id")
+        if uid:
+            billing.credit(uid, int(p["amount"]) // 100, "topup", ref=p["id"])
+    return {"ok": True}
+
+
 @app.get("/api/capabilities")
 async def capabilities() -> dict:
     """Tell the frontend what the running backend can do."""
     return {
         "desktop": DESKTOP_MODE,
-        "version": "0.7",
+        "version": "0.8",
+        "billing": billing.enabled(),
         # ponytail: no compilers/subprocess sandbox on Vercel — solve is local-only
         "solve": not os.environ.get("VERCEL"),
         "languages": list(LANGS),
@@ -564,6 +723,7 @@ class RewriteIn(BaseModel):
     text: str
     instruction: str | None = ""
     target_words: int | None = None
+    api_key: str | None = ""
 
 
 def _ai_rewrite(text: str, instruction: str, target_words: int, api_key: str) -> str:
@@ -582,20 +742,19 @@ def _ai_rewrite(text: str, instruction: str, target_words: int, api_key: str) ->
 
 
 @app.post("/api/ai/rewrite")
-async def ai_rewrite(body: RewriteIn) -> dict:
-    _require_desktop()
-    key = _profile_key()
-    if not key:
-        raise HTTPException(400, "No Gemini API key configured. Add one in Profile.")
+async def ai_rewrite(body: RewriteIn, authorization: str = Header("")) -> dict:
     if not body.text.strip():
         raise HTTPException(400, "Text is empty.")
+    key, charged = _paid_key(authorization, body.api_key or "", "rewrite")
     target = body.target_words or max(1, len(body.text.split()))
     try:
         new = _ai_rewrite(body.text, body.instruction or "", target, key)
     except urllib.error.HTTPError as e:
+        _refund(charged, "rewrite")
         msg = e.read().decode("utf-8", errors="replace") if e.fp else str(e)
         raise HTTPException(502, f"Gemini API error {e.code}: {msg[:200]}") from e
     except Exception as e:
+        _refund(charged, "rewrite")
         raise HTTPException(502, f"AI call failed: {e}") from e
     return {
         "text": new,
@@ -613,6 +772,12 @@ class TemplateFill(BaseModel):
     ex_no: str = ""
     title: str = ""
     date: str = ""
+    # formatting prefs (the pre-generation questionnaire)
+    font: str = "Times New Roman"
+    body_pt: int = 12
+    margin: str = "normal"       # "normal" (1") | "narrow" (0.5")
+    page_numbers: bool = True
+    header_line: bool = True
 
 
 @app.get("/api/templates")
@@ -639,7 +804,14 @@ async def fill_template(body: TemplateFill) -> Response:
 
     with tempfile.TemporaryDirectory() as td:
         empty = Path(td) / "empty.docx"
-        build_template(empty)
+        build_template(
+            empty,
+            font=(body.font.strip() or "Times New Roman")[:64],
+            body_pt=min(max(body.body_pt, 9), 14),
+            margin_in=0.5 if body.margin == "narrow" else 1.0,
+            page_numbers=body.page_numbers,
+            header_line=body.header_line,
+        )
         doc = Document(str(empty))
 
     fills = {
@@ -740,6 +912,101 @@ async def ai_generate_code(body: GenerateCodeIn) -> dict:
         raise HTTPException(502, f"AI call failed: {e}") from e
     result["language"] = body.language
     return result
+
+
+# --- Generate question (web-safe: Gemini writes code + output, no execution) --
+
+_GEN_SYSTEM = (
+    "You write programs and their terminal output for a college lab record. "
+    "Programs must be simple, deterministic, student-grade (clear variable "
+    "names, a few comments, no over-engineering), and self-contained: hardcode "
+    "sample inputs, never read stdin. The output you write must be EXACTLY "
+    "what running the program would print — no commentary, no markdown, under "
+    "25 lines."
+)
+
+
+@app.post("/api/generate/question")
+async def generate_question(
+    file: UploadFile = File(...),
+    number: str = Form(""),
+    title: str = Form(...),
+    question: str = Form(""),
+    language: str = Form("python"),
+    urk: str = Form(""),
+    urk_mode: str = Form("line"),        # "line" | "title" | "prompt" | "none"
+    include_code_shot: str = Form("1"),
+    api_key: str = Form(""),
+    authorization: str = Header(""),
+) -> Response:
+    """One generated question: AI code + simulated run, rendered screenshots,
+    inserted into the uploaded record. The frontend loops this per question."""
+    if not file.filename or not file.filename.lower().endswith(".docx"):
+        raise HTTPException(400, "Please upload a .docx file.")
+    if not title.strip():
+        raise HTTPException(400, "Title is required.")
+    if language not in LANGS:
+        raise HTTPException(400, f"language must be one of {LANGS}")
+    data = await file.read()
+    if not data:
+        raise HTTPException(400, "Uploaded file is empty.")
+
+    key, charged = _paid_key(authorization, api_key, "gen_question")
+    prompt = (
+        f"Experiment/context: {title}\n"
+        f"Task: {question.strip() or title}\n"
+        f"Language: {language}\n\n"
+        "Respond with ONLY a JSON object, no markdown fences:\n"
+        '{"filename":"program' + _ext(language) + '","command":"...",'
+        '"code":"...","output":"..."}\n'
+        "code = the full program source. command = how a student runs it on "
+        "Windows cmd. output = the exact terminal output of that run."
+    )
+    try:
+        text, _ = gemini_call(
+            [{"text": prompt}], api_key=key, system=_GEN_SYSTEM,
+            max_tokens=4000, timeout=90, force_json=True,
+        )
+        payload = json.loads(strip_fences(text))
+        code = payload["code"]
+        output = payload.get("output", "")
+        command = payload.get("command", "")
+        filename = payload.get("filename", "program" + _ext(language))
+
+        images: list[bytes] = []
+        if include_code_shot == "1":
+            images.append(render_code_shot(code, language=language, filename=filename))
+        images.append(render_terminal_shot(
+            output, command=command, cwd=r"C:\Users\{urk}\Desktop\Lab",
+            style="cmd", urk=urk, urk_mode=urk_mode,
+        ))
+        out_bytes = add_solved_question_bytes(
+            data, number=number, title=title, description=question,
+            code=code, images=images,
+        )
+    except urllib.error.HTTPError as e:
+        _refund(charged, "gen_question")
+        msg = e.read().decode("utf-8", errors="replace") if e.fp else str(e)
+        raise HTTPException(502, f"Gemini API error {e.code}: {msg[:200]}") from e
+    except (json.JSONDecodeError, KeyError) as e:
+        _refund(charged, "gen_question")
+        raise HTTPException(502, f"AI returned a malformed payload: {e}") from e
+    except Exception as e:
+        _refund(charged, "gen_question")
+        raise HTTPException(502, f"Generation failed: {e}") from e
+
+    base = Path(file.filename).stem or "record"
+    return Response(
+        content=out_bytes,
+        media_type=DOCX_MIME,
+        headers={
+            "Content-Disposition": f'attachment; filename="{base}.docx"',
+            "X-Question-Added": "1",
+            "X-Images-Added": str(len(images)),
+            "Access-Control-Expose-Headers":
+                "Content-Disposition, X-Question-Added, X-Images-Added",
+        },
+    )
 
 
 # --- Solve pipeline: run + screenshot + insert --------------------------------

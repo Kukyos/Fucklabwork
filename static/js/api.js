@@ -1,5 +1,11 @@
 // Tiny fetch wrappers around the AutoLAB backend.
 
+let authToken = null;
+export function setAuthToken(t) { authToken = t; }
+function authHeaders(extra = {}) {
+  return authToken ? { Authorization: `Bearer ${authToken}`, ...extra } : extra;
+}
+
 async function jsonOrThrow(res) {
   if (!res.ok) {
     let detail = `HTTP ${res.status}`;
@@ -48,7 +54,39 @@ export const api = {
       fd.append("patch_images", "true");
       fd.append("api_key", apiKey);
     }
-    return fileOrThrow(await fetch("/api/replace", { method: "POST", body: fd }));
+    return fileOrThrow(await fetch("/api/replace", {
+      method: "POST", headers: authHeaders(), body: fd,
+    }));
+  },
+
+  async generateQuestion(file, fields) {
+    const fd = new FormData();
+    fd.append("file", file);
+    for (const [k, v] of Object.entries(fields)) fd.append(k, v);
+    return fileOrThrow(await fetch("/api/generate/question", {
+      method: "POST", headers: authHeaders(), body: fd,
+    }));
+  },
+
+  async billingConfig() {
+    return jsonOrThrow(await fetch("/api/billing/config"));
+  },
+  async me() {
+    return jsonOrThrow(await fetch("/api/me", { headers: authHeaders() }));
+  },
+  async payOrder(amount) {
+    return jsonOrThrow(await fetch("/api/pay/order", {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ amount }),
+    }));
+  },
+  async payVerify(order_id, payment_id, signature) {
+    return jsonOrThrow(await fetch("/api/pay/verify", {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ order_id, payment_id, signature }),
+    }));
   },
 
   async listTemplates() {
@@ -74,7 +112,7 @@ export const api = {
   async aiRewrite(text, instruction = "", target_words = null) {
     return jsonOrThrow(await fetch("/api/ai/rewrite", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ text, instruction, target_words }),
     }));
   },

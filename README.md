@@ -31,9 +31,31 @@ Desktop exe: `pyinstaller AutoLAB.spec` → `dist/AutoLAB.exe`.
 
 The repo is Vercel-ready (`vercel.json` + `api/index.py` wrap the FastAPI app).
 Import the GitHub repo in Vercel and deploy — no settings needed. The hosted
-version serves find & replace (with screenshot patching), document editing, and
-template fill; the solve pipeline (running code, compilers) is desktop-only and
-hides itself automatically.
+version serves find & replace (with screenshot patching), document editing,
+template fill, and full AI record generation (Gemini writes the code + output,
+labshot renders the screenshots — no compilers needed); the solve pipeline
+(actually running code) is desktop-only and hides itself automatically.
+
+## Payments / credits (optional)
+
+The site can run a prepaid-credits system (₹1 = 1 credit, Razorpay top-ups,
+Supabase accounts + wallet). It is **off by default** — everything stays
+BYO-key and free until you set these env vars on the server:
+
+| Env var | From |
+|---------|------|
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_KEY` | Supabase dashboard → Settings → API |
+| `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` | Razorpay dashboard → API keys |
+| `RAZORPAY_WEBHOOK_SECRET` | Razorpay dashboard → Webhooks (optional backup path) |
+| `GEMINI_API_KEY` | the server-side key paid ops run on |
+
+One-time DB setup: paste `supabase_setup.sql` into Supabase → SQL Editor →
+Run. Sign-in is email OTP (change Supabase's magic-link email template to
+contain `{{ .Token }}`).
+
+Prices live in `billing.py` (`PRICES`). Text find & replace is always free;
+any AI op is also free when the user brings their own Gemini key. Failed paid
+ops auto-refund.
 
 ## What's inside
 
@@ -42,6 +64,8 @@ hides itself automatically.
 | `server.py` | FastAPI backend — all `/api/*` endpoints |
 | `autolab.py` | docx find/replace + block extraction/editing |
 | `gemini.py` | Gemini API client + in-place screenshot patching |
+| `billing.py` | Supabase auth + credit wallet + Razorpay (stdlib HTTP only) |
+| `supabase_setup.sql` | one-time DB schema — paste into Supabase SQL Editor |
 | `runner.py` | executes generated code (python/c/cpp/java) with timeouts; `run_pair` handles server+client socket labs |
 | `labshot.py` | draws the screenshots — Windows terminal + VS Code windows, URK spoofing (`line`/`title`/`prompt`) |
 | `assemble.py` | writes a solved question (heading, code block, images) into a docx |

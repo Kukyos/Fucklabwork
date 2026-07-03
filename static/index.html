@@ -16,7 +16,7 @@
       <div class="brand">
         <span class="brand-mark" aria-hidden="true">A</span>
         <span class="brand-name">AutoLAB</span>
-        <span class="brand-tag">v0.7</span>
+        <span class="brand-tag">v0.8</span>
       </div>
 
       <nav class="nav" role="tablist" aria-label="Sections">
@@ -64,7 +64,16 @@
           <span>Search</span>
           <kbd class="kbd">⌘K</kbd>
         </button>
-        <div class="mode-pill" id="mode-pill">Web</div>
+        <div class="pill-row">
+          <div class="mode-pill" id="mode-pill">Web</div>
+          <button class="mode-pill credits-pill" id="credits-pill" hidden title="Credits — click to top up">₹0</button>
+        </div>
+        <div class="foot-links">
+          <a href="/terms">Terms</a>
+          <a href="/privacy">Privacy</a>
+          <a href="/refunds">Refunds</a>
+          <a href="/contact">Contact</a>
+        </div>
       </div>
     </aside>
 
@@ -87,6 +96,11 @@
     </header>
 
     <main class="canvas" id="canvas">
+
+      <div class="notice" id="disclaimer" hidden>
+        <span>AutoLAB automates formatting &amp; busywork. What you use it for — and your college's rules — are your responsibility. <a href="/terms">Terms</a></span>
+        <button id="disclaimer-x" aria-label="Dismiss" type="button">×</button>
+      </div>
 
       <!-- DOCUMENTS ----------------------------------------------------- -->
       <section class="view is-active" data-view="documents">
@@ -186,10 +200,60 @@
           </div>
         </header>
 
-        <div class="when-web web-only-callout">
+        <div class="when-web web-only-callout" id="no-billing-callout">
           <div class="callout">
             <h3>Why desktop-only?</h3>
             <p>Saved data and API keys belong on your machine — never on a server we run. Download the desktop build for the full experience.</p>
+          </div>
+        </div>
+
+        <div class="when-web" id="account-wrap" hidden>
+          <div class="profile-grid">
+            <article class="card">
+              <div class="card-head">
+                <h3>Account</h3>
+                <span class="card-sub" id="acct-state">Signed out</span>
+              </div>
+              <div id="acct-signedout">
+                <p class="card-desc">Sign in with your email — we send a 6-digit code, no password. Your credits live on this account.</p>
+                <form id="acct-email-form" class="inline-form" autocomplete="off">
+                  <input id="acct-email" type="email" placeholder="you@email.com" required />
+                  <button class="btn-primary">Send code</button>
+                </form>
+                <form id="acct-code-form" class="inline-form" autocomplete="off" hidden>
+                  <input id="acct-code" inputmode="numeric" maxlength="6" placeholder="6-digit code" required />
+                  <button class="btn-primary">Verify</button>
+                </form>
+                <p class="hint" id="acct-status"></p>
+              </div>
+              <div id="acct-signedin" hidden>
+                <div class="rp-info">
+                  <div class="rp-info-row"><span class="k">Email</span><span class="v" id="acct-email-v">—</span></div>
+                  <div class="rp-info-row"><span class="k">Credits</span><span class="v" id="acct-balance">—</span></div>
+                </div>
+                <div class="form-actions">
+                  <button class="btn-ghost" id="acct-signout" type="button">Sign out</button>
+                </div>
+              </div>
+            </article>
+
+            <article class="card" id="topup-card" hidden>
+              <div class="card-head">
+                <h3>Top up</h3>
+                <span class="card-sub">₹1 = 1 credit · UPI / card</span>
+              </div>
+              <p class="card-desc">Credits pay only for AI ops on our key. Text find &amp; replace is always free — and everything is free if you bring your own Gemini key.</p>
+              <div class="form-actions" id="topup-buttons"></div>
+              <p class="hint" id="topup-status"></p>
+            </article>
+
+            <article class="card" id="pricing-card" hidden>
+              <div class="card-head">
+                <h3>Pricing</h3>
+                <span class="card-sub">Flat, shown before every run</span>
+              </div>
+              <div class="rp-info" id="price-list"></div>
+            </article>
           </div>
         </div>
 
@@ -443,6 +507,125 @@
             </div>
           </form>
         </section>
+
+        <section class="rp-section" id="rp-tpl-ai" hidden>
+          <header class="rp-head">
+            <h3>Full record (AI)</h3>
+            <span class="rp-meta" id="ai-price-tag">₹5 / question</span>
+          </header>
+          <form id="ai-record-form" class="rp-form" autocomplete="off">
+            <div class="field">
+              <label for="air-course">Course title</label>
+              <input id="air-course" placeholder="Computer Networks Lab" />
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label for="air-reg">Register number</label>
+                <input id="air-reg" placeholder="URK24CS____" spellcheck="false" autocapitalize="off" />
+              </div>
+              <div class="field">
+                <label for="air-exno">Ex.No</label>
+                <input id="air-exno" placeholder="1" />
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label for="air-date">Date</label>
+                <input id="air-date" placeholder="03.07.2026" />
+              </div>
+              <div class="field">
+                <label for="air-lang">Language</label>
+                <select id="air-lang">
+                  <option value="python">Python</option>
+                  <option value="c">C</option>
+                  <option value="cpp">C++</option>
+                  <option value="java">Java</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label for="air-title">Experiment title</label>
+              <input id="air-title" placeholder="Socket Programming Basics" required />
+            </div>
+            <div class="field">
+              <label for="air-questions">Questions <span class="label-soft">(one per line)</span></label>
+              <textarea id="air-questions" rows="5" placeholder="Write a TCP echo server and client&#10;Implement a simple UDP chat&#10;Fetch and display a web page using sockets" required></textarea>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label for="air-urkmode">URK in screenshots</label>
+                <select id="air-urkmode">
+                  <option value="line">echo line</option>
+                  <option value="title">window title</option>
+                  <option value="prompt">prompt path</option>
+                  <option value="none">off</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>&nbsp;</label>
+                <label class="check"><input type="checkbox" id="air-codeshot" checked /> VS Code shots</label>
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Formatting</label>
+              <div class="ai-preview-wrap">
+                <div class="ai-preview" id="ai-preview" aria-hidden="true">
+                  <div class="pv-page">
+                    <div class="pv-header"></div>
+                    <div class="pv-body">
+                      <div class="pv-table"><span></span><span></span><span></span><span></span></div>
+                      <div class="pv-specimen">Aa</div>
+                      <div class="pv-h"></div>
+                      <div class="pv-line"></div><div class="pv-line mid"></div>
+                      <div class="pv-h"></div>
+                      <div class="pv-line"></div><div class="pv-line short"></div>
+                    </div>
+                    <div class="pv-footer"><span class="pv-pageno"></span></div>
+                  </div>
+                </div>
+                <div class="ai-fmt-fields">
+                  <div class="field">
+                    <label for="air-font">Font</label>
+                    <select id="air-font">
+                      <option>Times New Roman</option>
+                      <option>Arial</option>
+                      <option>Calibri</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="air-size">Size</label>
+                    <select id="air-size">
+                      <option value="11">11 pt</option>
+                      <option value="12" selected>12 pt</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="air-margin">Margins</label>
+                    <select id="air-margin">
+                      <option value="normal" selected>Normal (1")</option>
+                      <option value="narrow">Narrow (0.5")</option>
+                    </select>
+                  </div>
+                  <label class="check"><input type="checkbox" id="air-pagenums" checked /> Page numbers</label>
+                  <label class="check"><input type="checkbox" id="air-header" checked /> Header line</label>
+                </div>
+              </div>
+            </div>
+
+            <div class="field" id="air-key-field">
+              <label for="air-key">Gemini API key <span class="label-soft">(optional — makes it free)</span></label>
+              <input id="air-key" type="password" placeholder="AIza…" autocomplete="off" spellcheck="false" />
+              <p class="hint">Free at <strong>aistudio.google.com</strong>. Leave blank to use credits instead.</p>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn-primary" id="air-run">Generate record</button>
+              <span class="hint" id="air-status"></span>
+            </div>
+            <p class="hint" id="air-cost"></p>
+          </form>
+        </section>
       </div>
 
       <!-- Tools inspector -->
@@ -474,9 +657,9 @@
               <p class="hint">Finds the text inside embedded images and rewrites it in place — layout untouched.</p>
             </div>
             <div class="field" id="rep-key-field" hidden>
-              <label for="rep-key">Gemini API key</label>
+              <label for="rep-key">Gemini API key <span class="label-soft">(optional)</span></label>
               <input id="rep-key" type="password" placeholder="AIza…" autocomplete="off" spellcheck="false" />
-              <p class="hint">Free at <strong>aistudio.google.com</strong>. On desktop, leave blank to use your Profile key.</p>
+              <p class="hint" id="rep-key-hint">Free at <strong>aistudio.google.com</strong>. On desktop, leave blank to use your Profile key.</p>
             </div>
             <div class="form-actions">
               <button type="submit" class="btn-primary">Run</button>

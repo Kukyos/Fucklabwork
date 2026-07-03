@@ -74,26 +74,26 @@ def _insert_field(paragraph, instr, cached="1"):
     paragraph._p.append(fld)
 
 
-def _style_styles(doc):
+def _style_styles(doc, font=FONT, body_pt=BODY_PT):
     normal = doc.styles["Normal"]
-    normal.font.name = FONT
-    normal.font.size = Pt(BODY_PT)
-    _set_rfonts(normal.element.get_or_add_rPr())
+    normal.font.name = font
+    normal.font.size = Pt(body_pt)
+    _set_rfonts(normal.element.get_or_add_rPr(), font)
 
-    for name, size in (("Heading 1", HEADING_PT), ("Heading 2", BODY_PT + 1)):
+    for name, size in (("Heading 1", body_pt + 2), ("Heading 2", body_pt + 1)):
         s = doc.styles[name]
-        s.font.name = FONT
+        s.font.name = font
         s.font.size = Pt(size)
         s.font.bold = True
         s.font.color.rgb = RGBColor(0, 0, 0)
-        _set_rfonts(s.element.get_or_add_rPr())
+        _set_rfonts(s.element.get_or_add_rPr(), font)
 
 
-def _setup_page(section):
+def _setup_page(section, margin_in=1.0):
     section.page_height = Cm(29.7)
     section.page_width = Cm(21.0)
     for attr in ("top_margin", "bottom_margin", "left_margin", "right_margin"):
-        setattr(section, attr, Inches(1))
+        setattr(section, attr, Inches(margin_in))
 
 
 def _build_header(section):
@@ -105,14 +105,15 @@ def _build_header(section):
     p.add_run("{{REGISTER_NUMBER}}").bold = True
 
 
-def _build_footer(section):
+def _build_footer(section, page_numbers=True):
     p = section.footer.paragraphs[0]
     p.paragraph_format.tab_stops.add_tab_stop(Cm(15.9), WD_TAB_ALIGNMENT.RIGHT)
     p.add_run("{{REGISTER_NUMBER}}")
-    p.add_run("\tPage ")
-    _insert_field(p, "PAGE")
-    p.add_run(" of ")
-    _insert_field(p, "NUMPAGES")
+    if page_numbers:
+        p.add_run("\tPage ")
+        _insert_field(p, "PAGE")
+        p.add_run(" of ")
+        _insert_field(p, "NUMPAGES")
 
 
 def _build_top_table(doc):
@@ -157,13 +158,16 @@ def _add_placeholder(doc, text):
     return p
 
 
-def build_template(out_path: Path) -> None:
+def build_template(out_path: Path, *, font: str = FONT, body_pt: int = BODY_PT,
+                   margin_in: float = 1.0, page_numbers: bool = True,
+                   header_line: bool = True) -> None:
     doc = Document()
-    _style_styles(doc)
+    _style_styles(doc, font, body_pt)
     section = doc.sections[0]
-    _setup_page(section)
-    _build_header(section)
-    _build_footer(section)
+    _setup_page(section, margin_in)
+    if header_line:
+        _build_header(section)
+    _build_footer(section, page_numbers)
     _build_top_table(doc)
     doc.add_paragraph()  # spacer
     for name, placeholder in SECTIONS:
