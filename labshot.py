@@ -159,6 +159,47 @@ _STYLES = {
 }
 
 
+def render_console_text(
+    text: str,
+    *,
+    title: str = "Command Prompt",
+    body_color: str = "#0C0C0C",
+    bar_color: str = "#202020",
+    text_color: str = "#CCCCCC",
+    font_size: int = 22,
+    max_width: int = 1600,
+    pad: int = 26,
+) -> bytes:
+    """Draw a terminal window around a pre-composed transcript (bytes PNG).
+
+    Unlike render_terminal_shot this adds no prompt/banner logic — the caller
+    supplies the exact lines (prompts + real captured output). Width auto-fits
+    the content so screenshots crop tight like a real capture.
+    """
+    reg, _bold = _mono_fonts(font_size)
+    ui = _ui_font(int(font_size * 0.82))
+    ch_w = _char_width(reg)
+    lh = _line_height(reg)
+    raw = text.replace("\r\n", "\n").replace("\r", "\n").rstrip("\n").split("\n")
+    maxlen = max((len(ln) for ln in raw), default=1)
+    width = min(max_width, int(2 * pad + maxlen * ch_w) + 4)
+    cols = max(20, int((width - 2 * pad) / ch_w))
+    lines = _wrap("\n".join(raw), cols)
+
+    titlebar_h = int(font_size * 2.0)
+    total_h = titlebar_h + pad + lh * len(lines) + pad
+    chrome = _Chrome(width=width, titlebar_h=titlebar_h, title=title,
+                     title_color="#CCCCCC", bar_color=bar_color, body_color=body_color)
+    img, d = chrome.draw(total_h, ui)
+    y = titlebar_h + pad
+    for line in lines:
+        d.text((pad, y), line, font=reg, fill=text_color)
+        y += lh
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    return buf.getvalue()
+
+
 def render_terminal_shot(
     output: str,
     *,
