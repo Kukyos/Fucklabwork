@@ -6,7 +6,7 @@ screenshots, assemble the .docx exactly in the guideline's layout.
 """
 from __future__ import annotations
 
-import io, subprocess, sys
+import ast, contextlib, io, json, subprocess, sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
@@ -66,6 +66,152 @@ def shot(pyfile: str, output: str) -> bytes:
     return labshot.render_terminal_shot(
         output, command=f"python {pyfile}", cwd=r"C:\DSE\Ex1", style="cmd",
         urk_mode="none", show_banner=False, trailing_prompt=True, width=1500)
+
+
+# ---- notebook + video script ---------------------------------------------
+# (kind, source, spoken-note). The spoken note per code cell drives the video
+# script, so the notebook and the talk stay in lock-step.
+NB_CELLS = [
+    ("md", "# Ex 1 — Working with NumPy and Pandas\n\n"
+           "**Scenario:** Manufacturing Quality Control  \n**Reg No:** URK24CS1021", None),
+    ("md", "### NumPy", None),
+    ("code",
+     "import numpy as np\nnp.random.seed(1021)\n\n"
+     "# hourly defect rates for a full day (24 values, 0.1 - 5.0 %)\n"
+     "defects = np.round(np.random.uniform(0.1, 5.0, 24), 2)\ndefects",
+     "First I import numpy and set a seed, so the random numbers come out the "
+     "same every time I run it. Then I make an array of 24 defect rates — one "
+     "for each hour of the day — somewhere between 0.1 and 5 percent, and round "
+     "them to two decimals so it's easy to read."),
+    ("code", "# defect rate at the 12th hour\ndefects[12]",
+     "Here I just index into the array with square brackets to pull out the "
+     "defect rate at hour 12."),
+    ("code",
+     "# night shift runs 20:00 to 06:00, so it wraps past midnight\n"
+     "night = np.concatenate((defects[20:], defects[:7]))\nnight",
+     "The night shift runs from 8 in the evening to 6 in the morning, which "
+     "wraps around midnight. So I slice the last few hours of the day and the "
+     "first few hours of the next, and concatenate them into one array."),
+    ("code", "# 3 shifts of 8 hours each\nshifts = defects.reshape(3, 8)\nshifts",
+     "Next I reshape the 24 hours into a 3 by 8 grid — three shifts of eight "
+     "hours each — so I can analyse it shift by shift instead of one long line."),
+    ("code",
+     "# hours where defects went above 3%\n"
+     "for hour, rate in enumerate(defects):\n"
+     "    if rate > 3:\n        print(\"hour\", hour, \"->\", rate, \"%\")",
+     "Then I loop through every hour with enumerate, and print out only the ones "
+     "where the defect rate went above 3 percent — those are my problem hours "
+     "that need attention."),
+    ("code",
+     "# pair each hour's defects with a temperature reading\n"
+     "temp = np.round(np.random.uniform(18, 30, 24), 1)\n"
+     "combined = np.vstack((defects, temp))\ncombined",
+     "Here I make a second array of temperatures and stack it on top of the "
+     "defects with vstack, so now each hour has both its defect rate and its "
+     "temperature in one 2 by 24 array."),
+    ("code",
+     "s1, s2, s3 = np.split(defects, 3)\n"
+     "print(\"shift 1:\", s1)\nprint(\"shift 2:\", s2)\nprint(\"shift 3:\", s3)",
+     "After that I split the day into three equal shifts and print each one out "
+     "on its own line."),
+    ("code", "# anything above 4% counts as critical\ndefects[defects > 4]",
+     "Using a boolean mask, I keep only the critical defects — the hours where "
+     "the rate went above 4 percent."),
+    ("code", "np.sort(defects)",
+     "This one line sorts all the defect rates in ascending order, smallest to "
+     "largest."),
+    ("code",
+     "# acceptable quality is between 0.5 and 1.5%\n"
+     "defects[(defects >= 0.5) & (defects <= 1.5)]",
+     "And here I filter for the hours in the acceptable range — between 0.5 and "
+     "1.5 percent — by combining two conditions with an and."),
+    ("md", "### Pandas", None),
+    ("code",
+     "import pandas as pd\n\n"
+     "products = [\"Widget A\", \"Widget B\", \"Gadget\"]\npd.Series(products)",
+     "Now switching to pandas. I take a plain list of product names and turn it "
+     "into a Series, which just gives each product a little index next to it."),
+    ("code",
+     "data = {\"Product\": [\"Tool X\", \"Tool Y\"], \"Tolerance\": [0.1, 0.2]}\n"
+     "df = pd.DataFrame(data)\ndf",
+     "And finally I build a DataFrame from a dictionary, so the products and "
+     "their tolerance values line up neatly in a table with rows and columns."),
+]
+
+
+def _srclist(text: str) -> list[str]:
+    lines = text.splitlines(keepends=True)
+    return lines or [""]
+
+
+def _run_cell(src: str, ns: dict, count: int) -> list[dict]:
+    """Exec a code cell in shared ns like a Jupyter kernel: capture stdout and,
+    if the cell ends in a bare expression, its value as an execute_result."""
+    tree = ast.parse(src)
+    last = tree.body[-1] if tree.body else None
+    buf, result = io.StringIO(), None
+    with contextlib.redirect_stdout(buf):
+        if isinstance(last, ast.Expr):
+            exec(compile(ast.Module(tree.body[:-1], []), "<cell>", "exec"), ns)
+            result = eval(compile(ast.Expression(last.value), "<cell>", "eval"), ns)
+        else:
+            exec(compile(tree, "<cell>", "exec"), ns)
+    outs = []
+    if buf.getvalue():
+        outs.append({"output_type": "stream", "name": "stdout",
+                     "text": _srclist(buf.getvalue())})
+    if result is not None:
+        data = {"text/plain": _srclist(repr(result))}
+        if hasattr(result, "_repr_html_"):
+            data["text/html"] = _srclist(result._repr_html_())
+        outs.append({"output_type": "execute_result", "execution_count": count,
+                     "metadata": {}, "data": data})
+    return outs
+
+
+def build_notebook(path: Path) -> None:
+    ns: dict = {}
+    cells, count = [], 0
+    for kind, src, _note in NB_CELLS:
+        if kind == "md":
+            cells.append({"cell_type": "markdown", "metadata": {}, "source": _srclist(src)})
+        else:
+            count += 1
+            cells.append({"cell_type": "code", "execution_count": count,
+                          "metadata": {}, "outputs": _run_cell(src, ns, count),
+                          "source": _srclist(src)})
+    nb = {"cells": cells,
+          "metadata": {"kernelspec": {"display_name": "Python 3", "language": "python",
+                                       "name": "python3"},
+                       "language_info": {"name": "python", "version": "3.14"}},
+          "nbformat": 4, "nbformat_minor": 5}
+    path.write_text(json.dumps(nb, indent=1), encoding="utf8")
+
+
+def write_video_script(path: Path) -> None:
+    notes = [n for k, _s, n in NB_CELLS if k == "code" and n]
+    parts = [
+        "# Ex 1 — Code Explanation (video script)",
+        "*Manufacturing Quality Control · URK24CS1021 — aim ~5 minutes, spoken casually.*",
+        "",
+        "**Intro**",
+        "Hi, I'm [name], register number URK24CS1021. This is Experiment 1 of the "
+        "Data Science Ecosystem Lab, working with NumPy and Pandas. My scenario is "
+        "Manufacturing Quality Control — I'm analysing the hourly defect rates from "
+        "a factory over a 24-hour production day. Let me walk through my notebook "
+        "cell by cell.",
+        "",
+    ]
+    for i, note in enumerate(notes, 1):
+        parts += [f"**Cell {i}**", note, ""]
+    parts += [
+        "**Outro**",
+        "So that's the whole notebook — I started with raw hourly defect data and "
+        "used NumPy to index, slice, reshape, filter and sort it, then used Pandas "
+        "to organise product information into a Series and a DataFrame. Everything "
+        "ran and the output was verified. Thanks for watching.",
+    ]
+    path.write_text("\n".join(parts), encoding="utf8")
 
 
 # ---- docx helpers ---------------------------------------------------------
@@ -173,8 +319,12 @@ def build():
 
     out_docx = OUT / f"Ex1_{URK}.docx"
     doc.save(str(out_docx))
+
+    build_notebook(OUT / "Ex1_QualityControl.ipynb")
+    write_video_script(OUT / "video_script.md")
     print("wrote", OUT)
-    print("  screenshots: 2 | docx:", out_docx.name)
+    print("  screenshots: 2 | docx:", out_docx.name,
+          "| notebook + video_script.md")
 
 
 def _img(doc, png, width_in=6.2):
