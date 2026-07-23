@@ -236,5 +236,5 @@ def fill(template: Path, out_path: Path) -> None:
 
 
 if __name__ == "__main__":
-    tmpl = next(p for p in (REPO / "Subjects").glob("*.docx"))
-    fill(tmpl, REPO / "Subjects" / "DBMS" / f"Ex1A_DDL_{URK}.docx")
+    tmpl = next(Path(__file__).parent.glob("Ex. No. 1A*Creating and Managing Tables.docx"))
+    fill(tmpl, Path(__file__).parent / f"Ex1A_DDL_{URK}.docx")

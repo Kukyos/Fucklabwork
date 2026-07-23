@@ -96,7 +96,7 @@ def run_question(commands: list[str]) -> tuple[str, bytes]:
 
 
 def fill_docx(spec: dict, results: list[tuple[str, bytes]], out_path: Path) -> None:
-    tmpl = next((REPO / "Subjects").glob(spec["template_glob"]))
+    tmpl = next(Path(__file__).parent.glob(spec["template_glob"]))
     doc = Document(str(tmpl))
     hp = doc.sections[0].header.paragraphs[0]
     hp.alignment = WD_ALIGN_PARAGRAPH.RIGHT
