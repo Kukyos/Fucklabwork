@@ -188,30 +188,42 @@ def build_notebook(path: Path) -> None:
     path.write_text(json.dumps(nb, indent=1), encoding="utf8")
 
 
+# Terse cue cards — a few prompts per code cell. NOT a read-aloud script:
+# glance at the cue, look at the cell, say it in your own words.
+CUES = [
+    ["import numpy, set a seed so the random numbers repeat",
+     "make 24 hourly defect rates, 0.1-5%, rounded"],
+    ["just index in", "pull out hour 12's rate"],
+    ["night shift wraps past midnight", "so slice the end + the start and join them"],
+    ["reshape 24 hours into 3x8", "= three shifts of 8 hours"],
+    ["loop through the hours", "print the ones over 3% -> problem hours"],
+    ["second array of temperatures", "stack it on the defects -> 2x24"],
+    ["split the day into 3 equal shifts", "print each"],
+    ["boolean mask for anything over 4%", "= the critical hours"],
+    ["one line to sort ascending"],
+    ["filter the acceptable band, 0.5-1.5%", "two conditions with an &"],
+    ["pandas now: a plain list -> Series", "it adds an index"],
+    ["a dict -> DataFrame", "lines up product + tolerance as a table"],
+]
+
+
 def write_video_script(path: Path) -> None:
-    notes = [n for k, _s, n in NB_CELLS if k == "code" and n]
-    parts = [
-        "# Ex 1 — Code Explanation (video script)",
-        "*Manufacturing Quality Control · URK24CS1021 — aim ~5 minutes, spoken casually.*",
-        "",
-        "**Intro**",
-        "Hi, I'm [name], register number URK24CS1021. This is Experiment 1 of the "
-        "Data Science Ecosystem Lab, working with NumPy and Pandas. My scenario is "
-        "Manufacturing Quality Control — I'm analysing the hourly defect rates from "
-        "a factory over a 24-hour production day. Let me walk through my notebook "
-        "cell by cell.",
-        "",
-    ]
-    for i, note in enumerate(notes, 1):
-        parts += [f"**Cell {i}**", note, ""]
-    parts += [
-        "**Outro**",
-        "So that's the whole notebook — I started with raw hourly defect data and "
-        "used NumPy to index, slice, reshape, filter and sort it, then used Pandas "
-        "to organise product information into a Series and a DataFrame. Everything "
-        "ran and the output was verified. Thanks for watching.",
-    ]
-    path.write_text("\n".join(parts), encoding="utf8")
+    p = ["# Ex 1 — Code explanation (talking cues)",
+         "*Manufacturing Quality Control · URK24CS1021*",
+         "",
+         "> Cue cards, ~5 min. **Glance, don't read** — look at the cell on screen "
+         "and say it in your own words. Keep it relaxed, like you're showing a friend.",
+         "",
+         "**Open with:** who you are + reg no URK24CS1021, Experiment 1, NumPy & "
+         "Pandas, scenario = analysing a factory's hourly defect rates over 24 hours.",
+         ""]
+    for i, cues in enumerate(CUES, 1):
+        p.append(f"**Cell {i}** — " + "; ".join(cues))
+    p += ["",
+          "**Close with:** NumPy handled indexing/slicing/reshaping/filtering/"
+          "sorting, Pandas made the Series + DataFrame; it all ran and the output "
+          "checked out."]
+    path.write_text("\n".join(p), encoding="utf8")
 
 
 # ---- docx helpers ---------------------------------------------------------
