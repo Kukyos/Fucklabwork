@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Join Respawn Point - Registration</title>
+  <style>
+    /* same palette as the Ex1 homepage so this reads as one site, not a
+       random new page */
+    :root {
+      --bg: #1c1b18;
+      --panel: #242220;
+      --orange: #e8792c;
+      --orange-soft: #f3a15c;
+      --green: #7fae5a;
+      --text: #eae6df;
+      --text-dim: #b7b1a4;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', Verdana, sans-serif;
+      margin: 0;
+      line-height: 1.6;
+    }
+
+    header {
+      background-color: var(--panel);
+      border-bottom: 2px solid var(--orange);
+      padding: 14px 24px;
+    }
+
+    header a {
+      color: var(--text-dim);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    header a:hover {
+      color: var(--orange-soft);
+    }
+
+    .wrap {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 40px 8% 60px;
+    }
+
+    h1 {
+      color: var(--orange);
+      text-align: center;
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: var(--text-dim);
+      margin-top: 0;
+      margin-bottom: 34px;
+    }
+
+    fieldset {
+      border: 1px solid #3a3733;
+      border-radius: 6px;
+      margin-bottom: 22px;
+      padding: 18px 20px 22px;
+    }
+
+    legend {
+      color: var(--orange-soft);
+      font-weight: bold;
+      padding: 0 8px;
+    }
+
+    label {
+      display: block;
+      margin-top: 14px;
+      margin-bottom: 4px;
+      font-size: 14px;
+      color: var(--text-dim);
+    }
+
+    input, select {
+      background-color: var(--panel);
+      border: 1px solid #3a3733;
+      border-radius: 4px;
+      color: var(--text);
+      padding: 8px 10px;
+      font-size: 14px;
+      width: 100%;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--orange);
+    }
+
+    .inline-group label {
+      display: inline-block;
+      margin-right: 18px;
+      margin-top: 0;
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .inline-group input {
+      width: auto;
+      margin-right: 6px;
+    }
+
+    input[type="range"] {
+      padding: 0;
+    }
+
+    input[type="color"] {
+      width: 60px;
+      padding: 2px;
+      cursor: pointer;
+    }
+
+    button {
+      background-color: var(--orange);
+      color: #1c1b18;
+      border: none;
+      border-radius: 5px;
+      padding: 12px 20px;
+      font-size: 15px;
+      font-weight: bold;
+      margin-top: 26px;
+      width: 100%;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: var(--orange-soft);
+    }
+
+    footer {
+      text-align: center;
+      padding: 20px;
+      color: var(--text-dim);
+      font-size: 13px;
+      border-top: 1px solid #3a3733;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- simple header linking back to the Ex1 homepage -->
+  <header>
+    <a href="../Ex1/index.html">&larr; Back to Respawn Point</a>
+  </header>
+
+  <div class="wrap">
+    <h1>Join the Squad</h1>
+    <p class="subtitle">fill this in and you're one step closer to not solo queuing anymore</p>
+
+    <form action="#" method="post">
+
+      <!-- basic account details: text, email, password -->
+      <fieldset>
+        <legend>Account Details</legend>
+
+        <label for="gamertag">Gamer Tag</label>
+        <input type="text" id="gamertag" name="gamertag" placeholder="how people will see you" required>
+
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" placeholder="you@example.com" required>
+
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" required>
+      </fieldset>
+
+      <!-- personal info: number, date -->
+      <fieldset>
+        <legend>About You</legend>
+
+        <label for="age">Age</label>
+        <input type="number" id="age" name="age" min="13" max="99">
+
+        <label for="dob">Date of Birth</label>
+        <input type="date" id="dob" name="dob">
+
+        <!-- radio buttons -->
+        <label>Main Platform</label>
+        <div class="inline-group">
+          <label><input type="radio" name="platform" value="pc"> PC</label>
+          <label><input type="radio" name="platform" value="console"> Console</label>
+          <label><input type="radio" name="platform" value="mobile"> Mobile</label>
+        </div>
+      </fieldset>
+
+      <!-- game preferences: checkboxes, select, datalist, range, color -->
+      <fieldset>
+        <legend>Gaming Preferences</legend>
+
+        <!-- checkboxes -->
+        <label>Games You're Into</label>
+        <div class="inline-group">
+          <label><input type="checkbox" name="games" value="battle-royale"> Battle Royale</label>
+          <label><input type="checkbox" name="games" value="racing"> Racing</label>
+          <label><input type="checkbox" name="games" value="mmorpg"> MMORPG</label>
+          <label><input type="checkbox" name="games" value="fps"> FPS</label>
+        </div>
+
+        <!-- dropdown -->
+        <label for="heard">How Did You Hear About Us?</label>
+        <select id="heard" name="heard">
+          <option value="friend">A friend told me</option>
+          <option value="youtube">YouTube</option>
+          <option value="reddit">Reddit</option>
+          <option value="discord">Another Discord server</option>
+          <option value="other">Other</option>
+        </select>
+
+        <!-- datalist -->
+        <label for="region">Closest Server Region</label>
+        <input list="regions" name="region" id="region" placeholder="start typing a city">
+        <datalist id="regions">
+          <option value="Mumbai">
+          <option value="Chennai">
+          <option value="Bangalore">
+          <option value="Singapore">
+          <option value="London">
+        </datalist>
+
+        <!-- range -->
+        <label for="rating">Rate Your Skill Level (1-10)</label>
+        <input type="range" id="rating" name="rating" min="1" max="10" value="5">
+
+        <!-- color -->
+        <label for="accent">Pick a Profile Accent Color</label>
+        <input type="color" id="accent" name="accent" value="#e8792c">
+      </fieldset>
+
+      <button type="submit">Create Account</button>
+    </form>
+  </div>
+
+  <footer>
+    <p>&copy; 2026 Respawn Point. Made for URK24CS1021's Web Tech lab, not an actual gaming company.</p>
+  </footer>
+
+</body>
+</html>
