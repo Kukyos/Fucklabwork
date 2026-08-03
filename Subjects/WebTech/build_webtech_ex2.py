@@ -42,9 +42,10 @@ DESC = ("HTML5 introduced several new <input> types beyond plain text, each "
         "from a group sharing the same name; checkboxes allow multiple. A "
         "<select> gives a fixed dropdown of options, while a <datalist> "
         "attached to a text input via the list attribute gives suggestions "
-        "the user can still type past. <fieldset> and <legend> group related "
-        "inputs with a labelled border, and each <label>'s for attribute ties "
-        "it to its input's id for accessibility.")
+        "the user can still type past. Each <label>'s for attribute ties it to "
+        "its input's id, and the fields are separated with <br> tags, the same "
+        "way as in the sample form. The background and text colors are set "
+        "with inline CSS, carried over from the Ex1 page.")
 
 PROCEDURE = (
     "1. Reused the sample registration form as a reference for which input "
@@ -54,16 +55,18 @@ PROCEDURE = (
     "the generic student-registration wording (Gamer Tag instead of Full "
     "Name, Main Platform instead of Gender, Games You're Into instead of "
     "Skills, and so on).\n"
-    "3. Grouped the fields into three <fieldset> blocks (Account Details, "
-    "About You, Gaming Preferences) so the form doesn't read as one long wall "
-    "of inputs.\n"
-    "4. Reused the exact CSS color variables from the Ex1 homepage so this "
-    "page looks like part of the same site, then added form-specific styles "
-    "for inputs, radios/checkboxes and the submit button.\n"
-    "5. Added a back-link to the Ex1 homepage in the header.\n"
-    "6. Opened the page in the browser, tried every field (typed text, "
-    "picked a date, dragged the range slider, opened the color picker) to "
-    "confirm they all actually work, then took the output screenshots."
+    "3. Laid the fields out the same way as the sample form: a <label> with a "
+    "for attribute, a <br>, the input, then <br><br> before the next field, "
+    "with an HTML comment naming the input type above each one.\n"
+    "4. Used the same background and text colors as the Ex1 page, applied "
+    "with inline CSS on the <body> tag and on the labels, so this page looks "
+    "like part of the same site.\n"
+    "5. Added a link at the top back to the Ex1 homepage.\n"
+    "6. Opened the page in the browser and filled in every field (typed the "
+    "text fields, entered a date, picked a radio button and two checkboxes, "
+    "chose a dropdown option, typed a datalist suggestion and moved the range "
+    "slider) to confirm they all actually work, then took the output "
+    "screenshots of the empty and the filled-in form."
 )
 
 RESULT = ("The HTML5 registration form was successfully designed and "
@@ -185,8 +188,8 @@ def build() -> Path:
     output_anchor = clear_placeholder(doc, "Output")
     insert_after = output_anchor
     for fname, caption in [
-        ("output_1_top.jpg", "Account Details and About You"),
-        ("output_2_bottom.jpg", "Gaming Preferences and the submit button"),
+        ("output_1_top.jpg", "The empty form, showing every input type"),
+        ("output_2_bottom.jpg", "The same form after filling it in and using each control"),
     ]:
         cap = doc.add_paragraph(); cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
         cr = cap.add_run(caption); cr.italic = True; cr.font.size = Pt(10)
