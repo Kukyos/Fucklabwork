@@ -4,6 +4,25 @@ Auto-fills college lab record `.docx` templates: AI generates the code, AutoLAB
 **actually runs it**, renders terminal/VS Code "screenshots" from the real
 output, and inserts everything (heading, code text, images) into the record.
 
+## PDF editor
+
+Open a `.pdf` and click any line to retype it. The text goes back on the page
+at the same baseline in the same font, so nothing re-flows and the layout is
+untouched — the old glyphs are redacted away and the new ones drawn in place.
+
+The font is found automatically, best option first: reuse the page's own font
+resource, else re-embed a copy of it, else a Base-14 lookalike matched to the
+span's style, else the bundled CJK face. A rung is only skipped if it can't
+draw every character typed, so a replacement never silently loses glyphs.
+Anything lossy (substituted font, text shrunk to fit, undrawable characters)
+is reported in the panel rather than left for you to find in the download.
+
+Nothing is stored server-side: the file is re-sent on save and the edited PDF
+comes straight back as a download.
+
+**Not yet:** editing scanned PDFs (no text layer to edit — it says so),
+reordering/merging pages, images, and structure cleaning.
+
 Also rebrands a finished record in one shot: find & replace swaps a register
 number everywhere in the text **and inside the screenshots** (Gemini vision
 finds it, the Gemini image model rewrites it in place — layout untouched).
@@ -63,6 +82,7 @@ ops auto-refund.
 |------|------|
 | `server.py` | FastAPI backend — all `/api/*` endpoints |
 | `autolab.py` | docx find/replace + block extraction/editing |
+| `pdfedit.py` | PDF spans in/out — automatic font finding, in-place text replacement (`python pdfedit.py` self-checks) |
 | `gemini.py` | Gemini API client + in-place screenshot patching |
 | `billing.py` | Supabase auth + credit wallet + Razorpay (stdlib HTTP only) |
 | `supabase_setup.sql` | one-time DB schema — paste into Supabase SQL Editor |
