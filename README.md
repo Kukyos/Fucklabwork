@@ -20,6 +20,11 @@ is reported in the panel rather than left for you to find in the download.
 Nothing is stored server-side: the file is re-sent on save and the edited PDF
 comes straight back as a download.
 
+Hosted, the editor takes PDFs up to 30 pages — `/api/pdf/parse` returns every
+page as a preview image in one response (~0.13 MB/page) and Vercel caps a
+function response at 4.5 MB. Locally or on the desktop build there is no such
+cap: raise `AUTOLAB_PDF_MAX_PAGES`.
+
 **Not yet:** editing scanned PDFs (no text layer to edit — it says so),
 reordering/merging pages, images, and structure cleaning.
 

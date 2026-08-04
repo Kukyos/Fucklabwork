@@ -21,6 +21,8 @@ letting the user discover it in the output.
 from __future__ import annotations
 
 import base64
+import hashlib
+import os
 from dataclasses import dataclass
 
 import pymupdf
@@ -40,7 +42,15 @@ _BASE14 = {
 
 MIN_FONTSIZE = 6.0        # never shrink replacement text below this
 RENDER_DPI = 110          # page preview resolution
-MAX_PAGES = 100           # ponytail: whole doc rendered in one shot; page-range endpoint if bigger PDFs show up
+
+# /api/pdf/parse returns every page as a base64 PNG in one JSON body, which
+# measures ~0.13 MB per page at RENDER_DPI. Vercel caps a function's response
+# body at 4.5 MB, so 30 pages (~3.8 MB, ~1s) is the hosted ceiling with room
+# to spare. Running locally or on the desktop build there is no such cap --
+# raise it with AUTOLAB_PDF_MAX_PAGES.
+# ponytail: a page-range parameter on parse would lift the limit entirely;
+# worth it only once someone actually brings a long PDF.
+MAX_PAGES = int(os.environ.get("AUTOLAB_PDF_MAX_PAGES", "30"))
 
 
 def _rgb(color: int) -> tuple[float, float, float]:
@@ -219,9 +229,15 @@ def _draw(page: pymupdf.Page, origin, text: str, name: str, size: float,
     except Exception:
         if buf is None:
             raise
-        page.insert_font(fontname="embcopy", fontbuffer=buf)
-        page.insert_text(origin, text, fontname="embcopy", fontsize=size, color=color)
-        return "embcopy"
+        # Name the copy after its contents. insert_font() hands back the
+        # existing resource when the name is already taken, so a fixed name
+        # would make the second re-embedded font on a page silently draw in
+        # the first one's typeface -- and the report would still claim the
+        # span's own font.
+        copy = "emb" + hashlib.sha1(buf).hexdigest()[:10]
+        page.insert_font(fontname=copy, fontbuffer=buf)
+        page.insert_text(origin, text, fontname=copy, fontsize=size, color=color)
+        return copy
 
 
 def _fit_size(font: pymupdf.Font, old: str, new: str, size: float,
@@ -267,6 +283,11 @@ def apply_edits(doc: pymupdf.Document, edits: dict[str, str]) -> list[dict]:
             graphics=pymupdf.PDF_REDACT_LINE_ART_NONE,
         )
 
+        # ponytail: redrawn text is appended to the page's content stream, so
+        # it moves to the end of that page's extraction order. Visually and for
+        # search it makes no difference, but selecting a whole page picks it up
+        # out of sequence. Fixing it means content-stream surgery -- do that
+        # only if reading order or screen-reader output starts to matter.
         for sp in spans:
             text = edits[sp.id]
             name, how, font, dropped, buf = _resolve_font(
@@ -356,6 +377,36 @@ def demo() -> None:
     assert rep3[0]["font_source"] == "unicode", rep3
     assert rep3[0]["dropped"] is None, rep3
     assert "\u4f60\u597d" in pymupdf.open("pdf", emb2.tobytes())[0].get_text()
+
+    # Two spans on one page that both have to re-embed, with DIFFERENT fonts.
+    # Naming both copies the same thing makes the second reuse the first's
+    # resource and draw in the wrong typeface, while still reporting its own.
+    two = pymupdf.open()
+    tp = two.new_page()
+    tp.insert_font(fontname="fa", fontfile=r"C:\Windows\Fonts\verdana.ttf")
+    tp.insert_font(fontname="fb", fontfile=r"C:\Windows\Fonts\georgia.ttf")
+    tp.insert_text((72, 100), "alpha one", fontname="fa", fontsize=12)
+    tp.insert_text((72, 200), "beta two", fontname="fb", fontsize=12)
+    two = pymupdf.open("pdf", two.tobytes())
+    ids = {s.text.split()[0]: s.id for s in read_spans(two)}
+    apply_edits(two, {ids["alpha"]: "alpha edited", ids["beta"]: "beta edited"})
+    got = {s.text.split()[0]: s.font for s in read_spans(pymupdf.open("pdf", two.tobytes()))}
+    assert "Verdana" in got["alpha"], got
+    assert "Georgia" in got["beta"], got
+
+    # Editing a span must not take its same-line neighbour with it: redaction
+    # removes everything intersecting the rect, and headings like
+    # "Description:  body text" sit on one line as two adjacent spans.
+    adj = pymupdf.open()
+    ap = adj.new_page()
+    ap.insert_text((72, 100), "Label:", fontname="hebo", fontsize=12)
+    ap.insert_text((130, 100), "untouched neighbour", fontname="helv", fontsize=12)
+    adj = pymupdf.open("pdf", adj.tobytes())
+    label = [s for s in read_spans(adj) if "Label" in s.text][0]
+    apply_edits(adj, {label.id: "Heading:"})
+    after_adj = pymupdf.open("pdf", adj.tobytes())[0].get_text()
+    assert "untouched neighbour" in after_adj, repr(after_adj)
+    assert "Heading:" in after_adj, repr(after_adj)
 
     print("PASS pdfedit")
 
