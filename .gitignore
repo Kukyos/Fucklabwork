@@ -7,3 +7,5 @@ fable5firstmessage/
 _preview.py
 *.pyc
 .claude/
+.ipynb_checkpoints/
+~$*

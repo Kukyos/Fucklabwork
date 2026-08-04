@@ -246,6 +246,35 @@ Subjects/WebTech/
   output/Ex2/            — index.html, output_*.jpg, Ex2_URK24CS1021.docx
 ```
 
+## Assignment1 — different from the Ex1/Ex2 exercises (04/08/2026)
+Assignment1 (`output/Assignment1/`) is a separate teacher deliverable, not part of
+the Ex1/Ex2 "Respawn Point" sequence — own theme (**Travel Diary**, Cleo's
+choice), own submission format:
+- **Zero CSS at all**, not even inline colors — `materials/Assignment 1.docx`
+  says "Use only HTML (no CSS or JavaScript)", stricter than Ex1's inline-color
+  carve-out. Background color and the "framed" photo table use legacy
+  presentational HTML attributes instead (`bgcolor` on `<body>`/`<table>`,
+  `border` on `<img>`) — these are just HTML attributes, not CSS, so they don't
+  violate the rule, but flag this distinction to Cleo if she's surprised by how
+  the color got there.
+- **Real name required in on-page text**, not the "Cleo" handle — see
+  [[user-role]] memory. Cleo's actual name is A M Armaan; use that in any
+  visible deliverable content (footer credit, "Hi, I am ___" line, etc).
+- **Real photos/video**: Cleo dropped her own trip photos (`travpic1-3.jpeg`)
+  and a video (`travvid.mp4`, though it turned out to be gameplay footage, not
+  an actual trip clip — worth double-checking with her if a similarly odd file
+  shows up again) straight into `output/Assignment1/`, no generation needed for
+  those. Only the favicon and a short placeholder audio chime are
+  Python-generated (`generate_assets.py`); no local video-encoding lib is
+  available (no ffmpeg/opencv/moviepy installed), so a real trip video with no
+  ffmpeg would have to fall back to an external sample clip instead.
+- **Submission is a single PDF** (code snippets + screenshots per page), not
+  the `Lab Record Format.docx` template — `assemble_pdf.py` builds it directly
+  with PIL (renders code as text pages + resized screenshots, saved as a
+  multi-page PDF), no reportlab/fpdf dependency needed.
+- Single HTML page with anchor-based `<nav>`, not multiple linked pages — the
+  assignment allows multiple pages but doesn't require them.
+
 ## To do more WebTech experiments
 Same theme/site unless told otherwise. Write the real HTML/CSS(/JS once that
 starts), serve + screenshot for real via claude-in-chrome, then reuse
