@@ -7,9 +7,10 @@ import { initDocuments } from "./views/documents.js";
 import { initTemplates } from "./views/templates.js";
 import { initTools } from "./views/tools.js";
 import { initProfile } from "./views/profile.js";
+import { initPdf } from "./views/pdf.js";
 import { initOrganizer, showOrganizer } from "./views/organizer.js";
 
-const VIEWS = ["documents", "templates", "tools", "profile"];
+const VIEWS = ["documents", "pdf", "templates", "tools", "profile"];
 
 export const state = {
   capabilities: { desktop: false, version: "?" },
@@ -82,7 +83,7 @@ function showView(view) {
   closeRightDrawer();
   closePalette();
 }
-const cap = (s) => s[0].toUpperCase() + s.slice(1);
+const cap = (s) => (s === "pdf" ? "PDF" : s[0].toUpperCase() + s.slice(1));
 
 $$(".nav-item").forEach((btn) => btn.addEventListener("click", () => showView(btn.dataset.view)));
 window.addEventListener("hashchange", () => {
@@ -109,7 +110,7 @@ document.addEventListener("keydown", (e) => {
   }
   if (!inField && (e.metaKey || e.ctrlKey)) {
     const n = parseInt(e.key, 10);
-    if (n >= 1 && n <= 4) {
+    if (n >= 1 && n <= VIEWS.length) {
       e.preventDefault();
       showView(VIEWS[n - 1]);
     }
@@ -162,9 +163,11 @@ let paletteCursor = 0;
 function commands() {
   const cmds = [
     { label: "Go to Documents", meta: "1", run: () => showView("documents") },
-    { label: "Go to Templates", meta: "2", run: () => showView("templates") },
-    { label: "Go to Tools",     meta: "3", run: () => showView("tools") },
-    { label: "Go to Profile",   meta: "4", run: () => showView("profile") },
+    { label: "Go to PDF",       meta: "2", run: () => showView("pdf") },
+    { label: "Go to Templates", meta: "3", run: () => showView("templates") },
+    { label: "Go to Tools",     meta: "4", run: () => showView("tools") },
+    { label: "Go to Profile",   meta: "5", run: () => showView("profile") },
+    { label: "Edit a PDF",      meta: "pdf", run: () => showView("pdf") },
     { label: "Find & replace",  meta: "tool", run: () => showView("tools") },
     { label: "Generate a record from a template", meta: "tool", run: () => showView("templates") },
   ];
@@ -262,8 +265,14 @@ window.addEventListener("drop", (e) => {
   dropOverlay.hidden = true;
   const f = e.dataTransfer.files[0];
   if (!f) return;
-  if (!f.name.toLowerCase().endsWith(".docx")) {
-    toast("Only .docx files for now.", "err");
+  const name = f.name.toLowerCase();
+  if (name.endsWith(".pdf")) {
+    showView("pdf");
+    document.dispatchEvent(new CustomEvent("autolab:open-pdf", { detail: { file: f } }));
+    return;
+  }
+  if (!name.endsWith(".docx")) {
+    toast("Drop a .docx or a .pdf.", "err");
     return;
   }
   showView("documents");
@@ -283,6 +292,7 @@ $("#disclaimer-x").addEventListener("click", () => {
 initDocuments({ state, toast });
 initTemplates({ state, toast });
 initTools({ state, toast });
+initPdf({ state, toast });
 initProfile({ state, toast });
 initOrganizer({ state, toast });
 // expose for documents.js to call on close

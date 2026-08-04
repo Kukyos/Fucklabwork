@@ -45,6 +45,19 @@ export const api = {
     return fileOrThrow(await fetch("/api/document/save", { method: "POST", body: fd }));
   },
 
+  async parsePdf(file) {
+    const fd = new FormData();
+    fd.append("file", file);
+    return jsonOrThrow(await fetch("/api/pdf/parse", { method: "POST", body: fd }));
+  },
+
+  async savePdf(file, edits) {
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("edits", JSON.stringify(edits));
+    return fileOrThrow(await fetch("/api/pdf/save", { method: "POST", body: fd }));
+  },
+
   async replace(file, find, replace, patchImages = false, apiKey = "") {
     const fd = new FormData();
     fd.append("file", file);

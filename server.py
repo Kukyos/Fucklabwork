@@ -26,6 +26,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+import pymupdf
 from docx import Document
 from fastapi import FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, Response
@@ -33,6 +34,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import billing
+import pdfedit
 from autolab import (
     apply_block_edits_bytes,
     extract_blocks,
@@ -471,6 +473,76 @@ async def doc_save(
             "Content-Disposition": f'attachment; filename="{out_name}"',
             "X-Edits-Applied": str(applied),
             "Access-Control-Expose-Headers": "X-Edits-Applied, Content-Disposition",
+        },
+    )
+
+
+# --- PDF editor endpoints ----------------------------------------------------
+
+def _open_pdf(data: bytes) -> "pymupdf.Document":
+    if not data:
+        raise HTTPException(400, "Uploaded file is empty.")
+    try:
+        doc = pymupdf.open("pdf", data)
+    except Exception as e:
+        raise HTTPException(400, f"Not a readable PDF: {e}") from e
+    if doc.needs_pass:
+        raise HTTPException(400, "That PDF is password-protected — unlock it first.")
+    if doc.page_count > pdfedit.MAX_PAGES:
+        raise HTTPException(
+            400, f"That PDF has {doc.page_count} pages; the editor handles "
+                 f"up to {pdfedit.MAX_PAGES} at a time.")
+    return doc
+
+
+@app.post("/api/pdf/parse")
+async def pdf_parse(file: UploadFile = File(...)) -> dict:
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(400, "Please upload a .pdf file.")
+    data = await file.read()
+    doc = _open_pdf(data)
+    try:
+        spans = pdfedit.read_spans(doc)
+        pages = pdfedit.render_pages(doc)
+    except Exception as e:
+        raise HTTPException(500, f"Couldn't read that PDF: {e}") from e
+    return {
+        "name": file.filename,
+        "size": len(data),
+        "page_count": doc.page_count,
+        "pages": pages,
+        "spans": [s.as_dict() for s in spans],
+    }
+
+
+@app.post("/api/pdf/save")
+async def pdf_save(file: UploadFile = File(...), edits: str = Form(...)) -> Response:
+    try:
+        parsed = json.loads(edits)
+        if not isinstance(parsed, dict):
+            raise ValueError("`edits` must be a JSON object {id: text}")
+    except (ValueError, json.JSONDecodeError) as e:
+        raise HTTPException(400, f"Invalid edits payload: {e}") from e
+
+    doc = _open_pdf(await file.read())
+    try:
+        report = pdfedit.apply_edits(doc, parsed)
+        out_bytes = doc.tobytes(garbage=3, deflate=True)
+    except Exception as e:
+        raise HTTPException(500, f"Failed to apply edits: {e}") from e
+
+    base = Path(file.filename or "document").stem or "document"
+    return Response(
+        content=out_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{base}_edited.pdf"',
+            "X-Edits-Applied": str(len(report)),
+            # The report rides along so the UI can flag substituted fonts and
+            # shrunk text instead of the user finding them in the download.
+            "X-Edit-Report": json.dumps(report, ensure_ascii=True),
+            "Access-Control-Expose-Headers":
+                "X-Edits-Applied, X-Edit-Report, Content-Disposition",
         },
     )
 
