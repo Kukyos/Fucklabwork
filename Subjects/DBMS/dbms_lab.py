@@ -37,6 +37,19 @@ PROMPT, CONT = f"{DB}=#", f"{DB}(#"
 IMG_W = 6.4
 COURSE = "23CS2014 Database Systems Lab"
 FONT = "Times New Roman"
+SHOT_DPI = 150   # place every shot at one scale, so console text is the same size
+
+
+def img_width(png: bytes, cap: float) -> Inches:
+    """Width for a screenshot: its natural size at SHOT_DPI, never past `cap`.
+
+    A fixed width blows the short ones up -- Ex1B's two `\\set AUTOCOMMIT`
+    shots are only ~370px, so forcing them to 6.3" rendered them at 58 DPI,
+    huge and blurry next to the wide ones.
+    """
+    from PIL import Image
+    w = Image.open(io.BytesIO(png)).width
+    return Inches(min(w / SHOT_DPI, cap))
 
 # --- experiment specs: (question_no, [command strings]) -------------------
 # commands are exactly what a student types at psql (SQL or \d meta). Multi-
@@ -451,7 +464,7 @@ def fill_docx(spec: dict, results: list[tuple[str, bytes]], out_path: Path) -> N
         add_code_block(doc, code)
         ip = doc.add_paragraph(); ip.alignment = WD_ALIGN_PARAGRAPH.CENTER
         ip.paragraph_format.space_after = Pt(10)
-        ip.add_run().add_picture(io.BytesIO(png), width=Inches(IMG_W))
+        ip.add_run().add_picture(io.BytesIO(png), width=img_width(png, IMG_W))
         cp = doc.paragraphs[marker]
         q._p.addnext(ip._p); q._p.addnext(cp._p)
     res = next((p for p in doc.paragraphs if p.text.strip().startswith("Result")), None)
@@ -549,7 +562,7 @@ def build_docx_scratch(spec: dict, results: list[tuple[str, str, bytes]], out_pa
         _label(doc, "Sample Output:", size=12, space_before=2)
         p = doc.add_paragraph(); p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p.paragraph_format.space_after = Pt(8)
-        p.add_run().add_picture(io.BytesIO(png), width=Inches(IMG_W))
+        p.add_run().add_picture(io.BytesIO(png), width=img_width(png, IMG_W))
 
     _label(doc, "RESULT")
     _body(doc, "The SQL queries were executed and the desired output was obtained.")
@@ -562,7 +575,9 @@ def build_docx_scratch(spec: dict, results: list[tuple[str, str, bytes]], out_pa
 # holds Aim / Description / Questions / Result. Everything below the header
 # goes INSIDE that one cell -- python-docx cells duck-type as documents for
 # add_paragraph, so assemble.add_code_block works on them unchanged.
-RECORD_GLOB = "*Record Template.docx"   # NB: the shipped filename has a double space
+# Shipped as "dbms  Record Template.docx" (double space); renamed to one space
+# on disk. Kept as a glob so a re-sent copy with the original spacing still hits.
+RECORD_GLOB = "*Record Template.docx"
 REC_IMG_W = 6.3                         # body cell is 9776-216 twips = 6.64" wide
 
 
@@ -609,7 +624,7 @@ def build_record(spec: dict, results: list[tuple], out_path: Path) -> None:
         add_code_block(body, code)
         p = body.add_paragraph(); p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p.paragraph_format.space_after = Pt(10)
-        p.add_run().add_picture(io.BytesIO(png), width=Inches(REC_IMG_W))
+        p.add_run().add_picture(io.BytesIO(png), width=img_width(png, REC_IMG_W))
     _cell_para(body, "Result", bold=True, size=14, space_after=2)
     _cell_para(body, "The queries were executed and the desired output was obtained.")
     doc.save(str(out_path))

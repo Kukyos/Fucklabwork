@@ -17,8 +17,9 @@ Subjects/DBMS/
   PIPELINE.md
   dbms_lab.py          — current, real-run builder. Run everything through this.
   materials/            — teacher-provided originals: templates, question PDFs/PPTX,
-                          + "dbms  Record Template.docx" (note the DOUBLE SPACE in the
-                          shipped filename — glob it, never type it).
+                          + "dbms Record Template.docx" (shipped with a double space in
+                          the name; renamed to one space here — the code globs it anyway,
+                          so a re-sent copy with the original spacing still resolves).
                           dbms_lab.py globs templates from here (MATERIALS = HERE / "materials").
   output/ExN/           — the loose per-experiment writeup (our own layout)
                           { ExN_URK24CS1021.docx + .pdf, exN.sql, exN_commands.txt,
@@ -33,7 +34,7 @@ Subjects/DBMS/
 **Output vs record — two different artefacts, don't conflate them.**
 - *Output* = our own layout: header/footer, Ex.No table, per-question code + screenshot.
   No teacher format was ever imposed on it; the current shape is just what Cleo is happy with.
-- *Record* = `materials/dbms  Record Template.docx`, filled. One 2×3 table: header row
+- *Record* = `materials/dbms Record Template.docx`, filled. One 2×3 table: header row
   (Ex No + Date | Title | Register Number) and a **single merged body cell** holding
   Aim / Description / Questions / Result. Everything goes inside that one cell —
   python-docx cells duck-type as documents for `add_paragraph`, so `add_code_block`
