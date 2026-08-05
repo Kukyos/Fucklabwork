@@ -26,8 +26,13 @@ Subjects/DBMS/
                             screenshots/qNN.png }
   records/ExN/          — the record, in mam's record template's format
                           { ExN_Record_URK24CS1021.docx + .pdf }
-  others/URK24CS1006/   — work done for another student. Frozen; nothing here is
-                          maintained any more (Cleo: "not 1006 anymore, just my 1021").
+                          Numbered by EXPERIMENT, not by output file: 1(a) and 1(b)
+                          are one experiment, so records/Ex1 covers both. Outputs
+                          stay split as Ex1A and Ex1B.
+  others/URK24CS1006/   — work done for another student (Jaden). docx only, no PDFs.
+                          Same output/ + records/ split; his own MySQL screenshots,
+                          not our psql pipeline. Nothing new gets generated here
+                          unless Cleo asks ("not 1006 anymore, just my 1021").
   archive/              — deprecated/superseded outputs, kept for history, nothing reads these.
 ```
 
@@ -39,6 +44,16 @@ Subjects/DBMS/
   Aim / Description / Questions / Result. Everything goes inside that one cell —
   python-docx cells duck-type as documents for `add_paragraph`, so `add_code_block`
   works on a cell unchanged. Headings 14pt bold, content 12pt, Times New Roman.
+  `build_record()` takes a **list of parts** (one per sub-experiment); with more than
+  one, each of Aim/Description/Questions carries a `(a)`/`(b)` sub-heading per part
+  under the single heading. `RECORDS` maps record number → experiment keys.
+
+**Screenshot sizing (`img_width`)** — our labshot renders carry padding and vary a lot
+in width, so they're placed at a fixed `SHOT_DPI` (150) capped at the column width;
+a fixed *width* instead blew the short ones up (Ex1B's `\set AUTOCOMMIT` shots are
+~370px → 58 DPI, huge and blurry). Pass `dpi=None` for images that are tight screen
+crops with no padding — CS1006's MySQL captures — where the full column width is
+right and a DPI rule makes them illegibly small.
 
 ## How to run
 ```
@@ -96,6 +111,21 @@ Question set = `materials/Exp No 3 Advanced SQL.pdf` (12 questions, aggregates +
   - three tickets priced ≤ 30 (25.00, 28.50, 30.00), so Q10's 4% branch visibly fires next to the 2% one.
 - Q10 renders SELECT → single `CASE` UPDATE → SELECT in one screenshot, so the before/after prices prove the change instead of asserting it.
 - Q11 read plainly (`SELECT country, name, address … ORDER BY country`); no GROUP BY/`string_agg` gymnastics — "in each country" is a sort, not an aggregation.
+
+## others/URK24CS1006 (Jaden) — frozen unless asked
+`build_1006.py` assembles his work; run it from its own folder. **docx only, no PDFs.**
+- Ex1B + Ex2 = screenshots he captured himself (MySQL), under his two original
+  `EX1bUKR24CS1006/` / `ex2urk24cs1006/` folders; Ex2's shots sort by capture
+  timestamp, which happens to be question order.
+- Ex1A arrived as a finished PDF, not loose images — its 15 captures were pulled
+  out of `Ex. No. 1A Jaden.pdf` with PyMuPDF into `output/Ex1A/screenshots/`.
+  Reading order is p3, p4, four each on p5–p7, then p8; **page 1's two 50px-tall
+  images are table-header art, not output** — skip them or the mapping shifts by two.
+- His PDF types `TRUNCATE TABLE UsersURK24CS1030` on Q15 (leftover from whatever file
+  he started from); his screenshot shows he actually ran it against 1006, so the
+  record says 1006.
+- Ex1B Q1 has no screenshot at all — he asked for it left blank, so `build_record`
+  tolerates `code`/`png` being `None` and prints just the question text.
 
 ## Deprecated / don't use
 - `archive/build_exp1.py` — OLD Oracle-flavored **fake-screenshot** builder (drawn, not run). Superseded by `dbms_lab.py`. Keep only if someone specifically wants the Oracle SQL*Plus look.

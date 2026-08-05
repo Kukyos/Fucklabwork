@@ -40,16 +40,22 @@ FONT = "Times New Roman"
 SHOT_DPI = 150   # place every shot at one scale, so console text is the same size
 
 
-def img_width(png: bytes, cap: float) -> Inches:
-    """Width for a screenshot: its natural size at SHOT_DPI, never past `cap`.
+def img_width(png: bytes, cap: float, dpi: int | None = SHOT_DPI) -> Inches:
+    """Width for a screenshot: its natural size at `dpi`, never past `cap`.
 
-    A fixed width blows the short ones up -- Ex1B's two `\\set AUTOCOMMIT`
-    shots are only ~370px, so forcing them to 6.3" rendered them at 58 DPI,
+    Our own labshot renders are generous with padding and vary a lot in width,
+    so a fixed width blows the short ones up -- Ex1B's two `\\set AUTOCOMMIT`
+    shots are only ~370px, and forcing them to 6.3" rendered them at 58 DPI,
     huge and blurry next to the wide ones.
+
+    `dpi=None` means "always use the full width", which is right for screen
+    captures cropped tight to their content (CS1006's MySQL shots): they carry
+    no padding, so a fixed width normalises them instead of distorting them.
     """
+    if dpi is None:
+        return Inches(cap)
     from PIL import Image
-    w = Image.open(io.BytesIO(png)).width
-    return Inches(min(w / SHOT_DPI, cap))
+    return Inches(min(Image.open(io.BytesIO(png)).width / dpi, cap))
 
 # --- experiment specs: (question_no, [command strings]) -------------------
 # commands are exactly what a student types at psql (SQL or \d meta). Multi-
@@ -597,15 +603,25 @@ def _cell_para(cell, text, *, bold=False, size=12, center=False, space_after=4):
     return p
 
 
-def build_record(spec: dict, results: list[tuple], out_path: Path) -> None:
-    """results: [(n, question_text, code, png_bytes)]"""
+def build_record(parts: list[dict], out_path: Path, *, ex_no: str, name: str,
+                 date: str, reg: str = URK, shot_dpi: int | None = SHOT_DPI) -> None:
+    """One record file. `parts` is one entry per sub-experiment:
+
+        {"label": "(a) Creating and Managing Tables" | None,
+         "aim": str, "desc": str,
+         "results": [(n, question_text, code, png_bytes | None)]}
+
+    Ex1 is submitted as a single record covering both 1(a) and 1(b), so Aim,
+    Description and Questions each carry the parts in order under one heading
+    rather than repeating the heading twice. A single-part record collapses to
+    exactly what it was before (no labels printed).
+    """
     doc = Document(str(next(MATERIALS.glob(RECORD_GLOB))))
     t = doc.tables[0]
     head = t.rows[0].cells
-    for cell, lines in zip(head, (
-            [f"Ex. No. {spec['title'][2:]}", f"Date: {spec['date']}"],
-            [spec["name"]],          # kept upper-case: .title() mangles SQL/DML/DCL
-            [URK])):
+    for cell, lines in zip(head, ([f"Ex. No. {ex_no}", f"Date: {date}"],
+                                  [name],  # upper-case: .title() mangles SQL/DML/DCL
+                                  [reg])):
         _clear_cell(cell)
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         for line in lines:
@@ -613,18 +629,29 @@ def build_record(spec: dict, results: list[tuple], out_path: Path) -> None:
                        center=True, space_after=2)
 
     body = _clear_cell(t.rows[1].cells[0])
-    _cell_para(body, "Aim", bold=True, size=14, space_after=2)
-    _cell_para(body, spec["aim"], space_after=10)
-    _cell_para(body, "Description", bold=True, size=14, space_after=2)
-    _cell_para(body, spec["desc"], space_after=10)
+    multi = len(parts) > 1
+    for field in ("aim", "desc"):
+        _cell_para(body, {"aim": "Aim", "desc": "Description"}[field],
+                   bold=True, size=14, space_after=2)
+        for part in parts:
+            if multi:
+                _cell_para(body, part["label"], bold=True, space_after=2)
+            _cell_para(body, part[field], space_after=10)
     _cell_para(body, "Questions", bold=True, size=14, space_after=6)
-    for n, qtext, code, png in results:
-        q = _cell_para(body, f"{n}. {qtext}", bold=True, space_after=3)
-        q.paragraph_format.keep_with_next = True
-        add_code_block(body, code)
-        p = body.add_paragraph(); p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p.paragraph_format.space_after = Pt(10)
-        p.add_run().add_picture(io.BytesIO(png), width=img_width(png, REC_IMG_W))
+    for part in parts:
+        if multi:
+            _cell_para(body, part["label"], bold=True, size=13, space_after=5)
+        for n, qtext, code, png in part["results"]:
+            q = _cell_para(body, f"{n}. {qtext}", bold=True, space_after=3)
+            q.paragraph_format.keep_with_next = True
+            if code:
+                add_code_block(body, code)
+            if png is None:        # 1006's Ex1B Q1: he asked to leave it blank
+                continue
+            p = body.add_paragraph(); p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p.paragraph_format.space_after = Pt(10)
+            p.add_run().add_picture(io.BytesIO(png),
+                                    width=img_width(png, REC_IMG_W, shot_dpi))
     _cell_para(body, "Result", bold=True, size=14, space_after=2)
     _cell_para(body, "The queries were executed and the desired output was obtained.")
     doc.save(str(out_path))
@@ -707,7 +734,7 @@ def build(exp_key: str) -> Path:
         fill_docx(spec, results, docx_path)
     else:
         build_docx_scratch(spec, results, docx_path)
-    rec_path = build_record_for(spec)
+    rec_path = build_record_for(RECORD_OF[exp_key])
     to_pdf([docx_path, rec_path])
     print("wrote", outdir)
     print("  screenshots:", len(results), "| docx+pdf:", docx_path.name)
@@ -715,11 +742,29 @@ def build(exp_key: str) -> Path:
     return outdir
 
 
-def build_record_for(spec: dict) -> Path:
+# Records are numbered by EXPERIMENT, not by output file: 1(a) and 1(b) are two
+# outputs but one experiment, so they share a single record. Outputs stay split.
+RECORDS = {
+    "1": {"keys": ["1a", "1b"], "name": "CREATING AND MANAGING TABLES",
+          "labels": ["(a) Creating and Managing Tables",
+                     "(b) Managing Tables using DML, DCL and TCL Commands"]},
+    "2": {"keys": ["2"]},
+    "3": {"keys": ["3"]},
+}
+RECORD_OF = {k: no for no, cfg in RECORDS.items() for k in cfg["keys"]}
+
+
+def build_record_for(rec_no: str) -> Path:
     """Record only -- reuses the screenshots already on disk, touches no DB."""
-    recdir = HERE / "records" / spec["title"]; recdir.mkdir(parents=True, exist_ok=True)
-    path = recdir / f"{spec['title']}_Record_{URK}.docx"
-    build_record(spec, results_from_disk(spec), path)
+    cfg = RECORDS[rec_no]
+    specs = [EXPERIMENTS[k] for k in cfg["keys"]]
+    labels = cfg.get("labels", [None] * len(specs))
+    parts = [{"label": lb, "aim": s["aim"], "desc": s["desc"],
+              "results": results_from_disk(s)} for s, lb in zip(specs, labels)]
+    recdir = HERE / "records" / f"Ex{rec_no}"; recdir.mkdir(parents=True, exist_ok=True)
+    path = recdir / f"Ex{rec_no}_Record_{URK}.docx"
+    build_record(parts, path, ex_no=rec_no, date=specs[0]["date"],
+                 name=cfg.get("name", specs[0]["name"]))
     return path
 
 
@@ -734,7 +779,9 @@ if __name__ == "__main__":
             spec = EXPERIMENTS[k]
             outdir = HERE / "output" / spec["title"]
             write_commands(spec, outdir / f"{spec['title'].lower()}_commands.txt")
-            paths += [outdir / f"{spec['title']}_{URK}.docx", build_record_for(spec)]
+            paths += [outdir / f"{spec['title']}_{URK}.docx"]
+        for no in dict.fromkeys(RECORD_OF[k] for k in a[1:]):  # one record per experiment
+            paths.append(build_record_for(no))
         to_pdf(paths)
         for p in paths:
             print("wrote", p.with_suffix(".pdf"))

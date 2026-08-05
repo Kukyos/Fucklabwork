@@ -14,8 +14,8 @@ from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Inches, Pt
 
-from dbms_lab import (COURSE, FONT, IMG_W, EX1B, EX2, _rfonts, _cell_border,
-                       _label, _body)
+from dbms_lab import (COURSE, FONT, IMG_W, EX1A, EX1B, EX2, _rfonts, _cell_border,
+                       _label, _body, build_record, img_width)
 from docx.enum.table import WD_ALIGN_VERTICAL, WD_TABLE_ALIGNMENT
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
@@ -28,6 +28,45 @@ DATE = "29/07/2026"
 
 QTEXT_1B = {n: qt for n, qt, _ in EX1B["questions"]}
 QTEXT_2 = {n: qt for n, qt, _ in EX2["questions"]}
+
+# Ex1A came in as a finished PDF ("Ex. No. 1A Jaden.pdf") rather than loose
+# screenshots. Its 15 output captures were pulled straight out of the PDF into
+# output/Ex1A/screenshots/ (in reading order: p3, p4, then 4 per page for p5-p7,
+# then p8; page 1's two 50px strips are table-header art, not output). Queries
+# below are transcribed from that same PDF -- MySQL, like the rest of his work.
+SHOTS_1A = HERE / "output" / "Ex1A" / "screenshots"
+CODE_1A = [
+    "CREATE TABLE VenueURK24CS1006 (\n    VenueID INT PRIMARY KEY,\n    Name VARCHAR(255),\n"
+    "    Address VARCHAR(255),\n    City VARCHAR(255),\n    State VARCHAR(255),\n"
+    "    Country VARCHAR(255)\n);\n"
+    "CREATE TABLE UsersURK24CS1006 (\n    UserID INT PRIMARY KEY,\n    Name VARCHAR(255),\n"
+    "    Email VARCHAR(255),\n    Password VARCHAR(255),\n    Phone VARCHAR(20)\n);\n"
+    "CREATE TABLE EventURK24CS1006 (\n    EventID INT PRIMARY KEY,\n    Name VARCHAR(255),\n"
+    "    EventDate DATE,\n    EventTime TIMESTAMP,\n    VenueID INT,\n"
+    "    Description VARCHAR(500)\n);\n"
+    "CREATE TABLE TicketURK24CS1006 (\n    TicketID INT PRIMARY KEY,\n    EventID INT,\n"
+    "    UserID INT,\n    SeatNumber VARCHAR(20),\n    Price DECIMAL(10,2),\n"
+    "    Status VARCHAR(50)\n);",
+    "DESC UsersURK24CS1006;\nDESC EventURK24CS1006;\nDESC VenueURK24CS1006;\nDESC TicketURK24CS1006;",
+    "ALTER TABLE UsersURK24CS1006 ADD Age INT;",
+    "ALTER TABLE UsersURK24CS1006 DROP COLUMN Age;",
+    "RENAME TABLE VenueURK24CS1006 TO LocationURK24CS1006;",
+    "ALTER TABLE EventURK24CS1006 MODIFY Description VARCHAR(1000);",
+    "ALTER TABLE TicketURK24CS1006 DROP COLUMN SeatNumber;",
+    "ALTER TABLE UsersURK24CS1006 ADD CONSTRAINT unique_email UNIQUE (Email);",
+    "ALTER TABLE UsersURK24CS1006 CHANGE UserID ID INT;",
+    "ALTER TABLE TicketURK24CS1006 ADD Barcode VARCHAR(50);",
+    "ALTER TABLE LocationURK24CS1006 MODIFY Name VARCHAR(300);",
+    "ALTER TABLE EventURK24CS1006 ADD CONSTRAINT fk_event_venue\n"
+    "FOREIGN KEY (VenueID) REFERENCES LocationURK24CS1006(VenueID);",
+    "ALTER TABLE UsersURK24CS1006 ADD CONSTRAINT check_userid CHECK (ID BETWEEN 101 AND 105);",
+    "ALTER TABLE UsersURK24CS1006 ADD CONSTRAINT unique_phone UNIQUE (Phone);",
+    # his PDF types URK24CS1030 here -- a leftover from whoever's file he started
+    # from. The screenshot shows the command he actually ran, against 1006.
+    "TRUNCATE TABLE UsersURK24CS1006;",
+]
+RESULTS_1A = [(n, EX1A["qtext"][n - 1], CODE_1A[n - 1],
+               (SHOTS_1A / f"q{n:02d}.png").read_bytes()) for n in range(1, 16)]
 
 SHOTS_1B = HERE / "EX1bUKR24CS1006" / "ex1 output dbms"
 RESULTS_1B = [(1, QTEXT_1B[1], None, None)] + [
@@ -135,16 +174,40 @@ def build_docx(spec: dict, results: list[tuple], out_path: Path) -> None:
             _label(doc, "Sample Output:", size=12, space_before=2)
             p = doc.add_paragraph(); p.alignment = WD_ALIGN_PARAGRAPH.CENTER
             p.paragraph_format.space_after = Pt(8)
-            p.add_run().add_picture(io.BytesIO(png), width=Inches(IMG_W))
+            p.add_run().add_picture(io.BytesIO(png), width=img_width(png, IMG_W, None))
 
     _label(doc, "RESULT")
     _body(doc, "The SQL queries were executed and the desired output was obtained.")
     doc.save(str(out_path))
 
 
+def build_records():
+    """Records 1 and 2 in mam's template. Record 1 covers both halves of the
+    experiment -- 1(a) and 1(b) are two outputs but one experiment, same as
+    CS1021's. docx only: no PDFs asked for on this side."""
+    recs = [
+        ("1", "CREATING AND MANAGING TABLES", [
+            {"label": "(a) Creating and Managing Tables",
+             "aim": EX1A["aim"], "desc": EX1A["desc"], "results": RESULTS_1A},
+            {"label": "(b) Managing Tables using DML, DCL and TCL Commands",
+             "aim": EX1B["aim"], "desc": EX1B["desc"], "results": RESULTS_1B},
+        ]),
+        ("2", EX2["name"], [
+            {"label": None, "aim": EX2["aim"], "desc": EX2["desc"], "results": RESULTS_2},
+        ]),
+    ]
+    for no, name, parts in recs:
+        d = HERE / "records" / f"Ex{no}"; d.mkdir(parents=True, exist_ok=True)
+        path = d / f"Ex{no}_Record_{URK}.docx"
+        # his shots are tight screen crops, not labshot renders -> full width
+        build_record(parts, path, ex_no=no, name=name, date=DATE, reg=URK,
+                     shot_dpi=None)
+        print("wrote", path)
+
+
 def main():
     for spec, results, name in [(EX1B, RESULTS_1B, "Ex1B"), (EX2, RESULTS_2, "Ex2")]:
-        outdir = HERE / "output1006" / name
+        outdir = HERE / "output" / name
         shots = outdir / "screenshots"; shots.mkdir(parents=True, exist_ok=True)
         for n, _, _, png in results:
             if png:
@@ -152,6 +215,7 @@ def main():
         docx_path = outdir / f"{name}_{URK}.docx"
         build_docx(spec, results, docx_path)
         print("wrote", docx_path)
+    build_records()
 
 
 if __name__ == "__main__":
