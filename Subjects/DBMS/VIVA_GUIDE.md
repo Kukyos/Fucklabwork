@@ -300,6 +300,188 @@ transaction; `ROLLBACK TO SAVEPOINT` rewinds to the mark and leaves you still in
 
 ---
 
+## 8.5 Joins — you already have two, in Ex3
+
+**You have used an equijoin without it being labelled one.** Ex3 Q8 and Q9 are equijoins.
+
+```sql
+SELECT u.name, u.phone
+FROM URK24CS1021_users u, URK24CS1021_ticket t
+WHERE u.id = t.userid AND t.status = 'reserved';
+```
+
+That is a **join**: two tables in the `FROM`, linked by a condition. Because the condition uses
+`=`, it is specifically an **equijoin**. The `u` and `t` are **table aliases** — short names so
+you can write `u.id` instead of the full table name, and they're required when two tables have
+columns of the same name.
+
+### The one idea behind all joins
+
+Putting two tables in `FROM` produces every possible **pairing** of their rows — the
+**Cartesian product**, or **cross join**. On your data that is 5 users × 8 tickets = **40 rows**:
+
+```
+labdb=# SELECT COUNT(*) FROM URK24CS1021_users, URK24CS1021_ticket;
+ count
+-------
+    40
+```
+
+Those 40 rows are mostly nonsense — every user paired with every ticket, including tickets
+that aren't theirs. The `WHERE u.id = t.userid` **throws away the meaningless pairs** and keeps
+only rows where the ticket really belongs to that user. That is all a join is.
+
+> **If you forget the join condition you get the Cartesian product.** That is the classic exam
+> answer and the classic bug. With 5 and 8 rows it's 40; with two 1000-row tables it's a
+> million.
+
+### Two syntaxes, identical result
+
+| Old style (what you used) | Modern ANSI style |
+|---|---|
+| `FROM users u, ticket t`<br>`WHERE u.id = t.userid` | `FROM users u INNER JOIN ticket t`<br>`ON u.id = t.userid` |
+
+Verified on your data — both return the same 3 rows for Q8. The modern form is preferred
+because the **join condition (`ON`) is separated from the row filter (`WHERE`)**, so it's
+obvious which is which. If she asks you to rewrite Q8 "using a join", she means this:
+
+```sql
+SELECT u.name, u.phone
+FROM URK24CS1021_users u
+INNER JOIN URK24CS1021_ticket t ON u.id = t.userid
+WHERE t.status = 'reserved';
+```
+
+### The types
+
+| Join | What it does | Condition |
+|---|---|---|
+| **Cross join** (Cartesian) | Every row paired with every row | none |
+| **Equijoin** | Rows matched with `=` | `ON a.x = b.x` |
+| **Non-equijoin** | Matched with `<`, `>`, `BETWEEN` … | `ON a.price BETWEEN b.lo AND b.hi` |
+| **Natural join** | Auto-joins on **all** identically-named columns | implicit — **dangerous, see below** |
+| **Self join** | A table joined to itself, using two aliases | `FROM emp e, emp m WHERE e.mgr = m.id` |
+| **Inner join** | Only rows that match on both sides | default |
+| **Left outer join** | All left rows; NULLs where the right has no match | `LEFT JOIN … ON` |
+| **Right outer join** | All right rows; NULLs on the left | `RIGHT JOIN … ON` |
+| **Full outer join** | All rows from both sides | `FULL JOIN … ON` |
+
+### Inner vs outer — the actual difference
+
+An inner join **drops** rows that have no match. An outer join **keeps** them and fills the
+missing side with NULL. Run on your tables, asking for each user's cancelled ticket:
+
+```
+labdb=# SELECT u.name, t.ticketid
+        FROM URK24CS1021_users u
+        LEFT JOIN URK24CS1021_ticket t
+          ON u.id = t.userid AND t.status = 'cancelled'
+        ORDER BY u.id;
+     name      | ticketid
+---------------+----------
+ Alice Johnson |
+ Bob Smith     |
+ Carol Lee     |        3
+ David Kim     |
+ Emma Watson   |
+(5 rows)
+```
+
+Only Carol has a cancelled ticket. An **inner** join would have returned **1 row**; the left
+join returns **all 5 users**, with a blank (NULL) ticketid for the four with no match. That
+contrast — 1 row vs 5 — is the cleanest way to answer "what's the difference?"
+
+### Natural join — the trap on your own schema
+
+`NATURAL JOIN` joins on *every* column the two tables have in common, whether you meant it to
+or not. On your tables it silently returns nothing:
+
+```
+labdb=# SELECT eventid, name, city
+        FROM URK24CS1021_event NATURAL JOIN URK24CS1021_location;
+ eventid | name | city
+---------+------+------
+(0 rows)
+```
+
+**Why:** `event` and `location` share **two** column names — `venueid` *and* `name`. So the
+natural join required `event.venueid = location.venueid` **AND `event.name = location.name`**,
+and no event is named after its venue. Writing the join explicitly gives the 5 rows you wanted:
+
+```sql
+SELECT e.eventid, e.name, l.city
+FROM URK24CS1021_event e
+JOIN URK24CS1021_location l ON e.venueid = l.venueid;
+```
+
+That's a genuinely good thing to be able to say: *"natural join is convenient but unsafe,
+because it depends on column names rather than on what you meant — on my schema it joins on
+`name` as well as `venueid` and returns zero rows."*
+
+### Joining three tables
+
+Same idea, one more condition per extra table — your ticket → event → location chain:
+
+```sql
+SELECT u.name, e.name AS event, l.city
+FROM URK24CS1021_users u
+JOIN URK24CS1021_ticket t   ON u.id      = t.userid
+JOIN URK24CS1021_event e    ON t.eventid = e.eventid
+JOIN URK24CS1021_location l ON e.venueid = l.venueid;
+```
+
+Rule of thumb: **n tables need n−1 join conditions.** Four tables, three conditions. Fewer than
+that and part of your query degenerates into a Cartesian product.
+
+### Likely follow-ups
+
+- **What is a join?** Combining rows from two or more tables based on a related column.
+- **Which column do you join on?** The foreign key and the primary key it references.
+- **Equijoin vs non-equijoin?** Whether the condition uses `=` or a range/inequality.
+- **Inner vs outer?** Inner drops non-matching rows; outer keeps them with NULLs.
+- **What if you omit the condition?** Cartesian product — every combination.
+- **Why alias tables?** Shorter, and required to disambiguate same-named columns like `name`.
+
+### Subqueries — the usual companion question
+
+A subquery is a `SELECT` inside another statement, in brackets. All three below are run on your
+data.
+
+**Scalar** — returns one value, usable anywhere a value fits:
+```
+labdb=# SELECT ticketid, price FROM URK24CS1021_ticket
+        WHERE price > (SELECT AVG(price) FROM URK24CS1021_ticket);
+ ticketid | price
+----------+--------
+        1 | 147.00
+        2 | 147.00
+        3 | 196.00
+        4 | 117.60
+```
+You **cannot** write `WHERE price > AVG(price)` — an aggregate isn't allowed in `WHERE`. The
+subquery is how you compare a row against a summary of the whole table. That's the standard
+"why do you need a subquery here?" answer.
+
+**`IN`** — returns a list; keep rows matching any of it:
+```sql
+SELECT name FROM URK24CS1021_users
+WHERE id IN (SELECT userid FROM URK24CS1021_ticket WHERE status = 'reserved');
+```
+Same 3 names as the Q8 join — **a join and an `IN` subquery can often express the same thing.**
+If asked which is better: the join, generally, because the optimiser handles it better and it
+lets you select columns from both tables.
+
+**`EXISTS`** — true if the subquery returns any row at all:
+```sql
+SELECT name FROM URK24CS1021_location l
+WHERE EXISTS (SELECT 1 FROM URK24CS1021_event e WHERE e.venueid = l.venueid);
+```
+Returns the 4 venues that have at least one event. This one is **correlated** — it references
+`l` from the outer query, so it re-evaluates per row. A subquery that doesn't reference the
+outer query is *non-correlated* and runs only once. Knowing those two words is usually enough.
+
+---
+
 ## 9. Dialect differences
 
 Only the ones that appear in your own files or CS1006's.
@@ -315,6 +497,7 @@ Only the ones that appear in your own files or CS1006's.
 | Rename column | `RENAME COLUMN a TO b` | `RENAME COLUMN a TO b` | `CHANGE a b type` |
 | Concatenate | `a \|\| b` | `a \|\| b` | `CONCAT(a, b)` |
 | Autocommit | `SET AUTOCOMMIT ON` | `\set AUTOCOMMIT on` | `SET autocommit = 1;` |
+| Outer join (old form) | `WHERE a.x = b.x(+)` | not supported — use `LEFT JOIN` | not supported — use `LEFT JOIN` |
 | Prompt | `SQL>` | `labdb=#` | `mysql>` |
 
 The standard SQL — `SELECT`, `WHERE`, `GROUP BY`, `ORDER BY`, aggregates, constraints,
