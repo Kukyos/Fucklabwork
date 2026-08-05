@@ -44,7 +44,33 @@ FONT = "Times New Roman"
 P = URK  # table-name prefix
 
 EX1A = {
-    "title": "Ex1A", "date": "08/07/2026",
+    "title": "Ex1A", "name": "CREATING AND MANAGING TABLES", "date": "08/07/2026",
+    "aim": "To execute DDL commands and get the desired output.",
+    "desc": ('DDL refers to "Data Definition Language", a subset of SQL statements '
+             "that change the structure of the database schema in some way, "
+             "typically by creating, deleting, or modifying schema objects such as "
+             "databases, tables, and views. Most DDL statements start with the "
+             "keywords CREATE, DROP, or ALTER."),
+    # question text lives in the teacher's template (List Paragraph runs), not in
+    # the (question_no, [commands]) tuples below -- copied out here so the record
+    # builder has it without re-parsing the template.
+    "qtext": [
+        "Create User, Event, Venue, and ticket tables based on the given schema.",
+        "Describe the tables.",
+        "Alter the User table to add a new column Age.",
+        "Drop the newly added column Age.",
+        "Rename the Venue table to Location.",
+        "Modify the size of the Event table's Description column to 1000.",
+        "Drop the SeatNumber column from the Ticket table.",
+        "Add a unique constraint on the Email column in the User table.",
+        "Rename the UserID column in the User table to ID.",
+        'Modify the Ticket table to add a column named "Barcode" with a data type of VARCHAR(50).',
+        "Modify the Name column in the Venue table to increase its maximum length to VARCHAR(300).",
+        "Add a foreign key constraint on the VenueID column in the Event table, referencing the Venue table.",
+        "Add a CHECK constraint to check whether the UserID is between 101 and 105.",
+        "Add a unique constraint to Phone column of the User table.",
+        "Truncate the user table.",
+    ],
     "reset": [f"{P}_users", f"{P}_venue", f"{P}_event", f"{P}_ticket", f"{P}_location"],
     "questions": [
         (1, [
@@ -261,7 +287,108 @@ EX1B = {
         (15, "Disable autocommit mode in the database.", ["\\set AUTOCOMMIT off"]),
     ],
 }
-EXPERIMENTS = {"1a": EX1A, "2": EX2, "1b": EX1B}
+
+# Exp3: the question set assumes two columns Ex1A had removed/never added --
+# ticket.seatnumber (Q7; Ex1A Q7 dropped it) and an event end time (Q4/Q6 ask
+# for "time taken" and events "more than 10 hours", which the base schema
+# cannot express). Setup restores them with visible ALTERs rather than
+# fudging the questions. The seed is chosen so each query actually
+# discriminates: one 2024 event (so Q2's 2023 count means something), three
+# 'reserved' tickets (Q8), and three tickets priced <= 30 (so Q10's 4% branch
+# fires alongside the 2% one).
+EX3 = {
+    "title": "Ex3", "name": "ADVANCED SQL", "date": "05/08/2026", "strict": True,
+    "reset": [f"{P}_users", f"{P}_location", f"{P}_event", f"{P}_ticket"],
+    "setup": TABLE_DDL + [
+        f"ALTER TABLE {P}_event ADD COLUMN endtime timestamp;",
+        f"ALTER TABLE {P}_ticket ADD COLUMN seatnumber varchar(20);",
+        f"INSERT INTO {P}_users (id, name, email, password, phone) VALUES\n"
+        f"    (101, 'Alice Johnson', 'alice@mail.com', 'pass1', '9000000001'),\n"
+        f"    (102, 'Bob Smith', 'bob@mail.com', 'pass2', '9000000002'),\n"
+        f"    (103, 'Carol Lee', 'carol@mail.com', 'pass3', '9000000003'),\n"
+        f"    (104, 'David Kim', 'david@mail.com', 'pass4', '9000000004'),\n"
+        f"    (105, 'Emma Watson', 'emma@mail.com', 'pass5', '9000000005');",
+        f"INSERT INTO {P}_location (venueid, name, address, city, state, country) VALUES\n"
+        f"    (1, 'Madison Square Garden', '4 Pennsylvania Plaza', 'New York', 'NY', 'USA'),\n"
+        f"    (2, 'Wembley Stadium', 'Wembley', 'London', 'England', 'UK'),\n"
+        f"    (3, 'Marina Bay Sands', '10 Bayfront Ave', 'Singapore', 'Singapore', 'Singapore'),\n"
+        f"    (4, 'Chennai Trade Centre', 'Mount Poonamallee Rd', 'Chennai', 'Tamil Nadu', 'India');",
+        f"INSERT INTO {P}_event (eventid, name, eventdate, eventtime, endtime, venueid, description) VALUES\n"
+        f"    (1, 'Rock Fest', '2023-08-15', '2023-08-15 19:00:00', '2023-08-15 23:00:00', 1, 'Outdoor rock concert'),\n"
+        f"    (2, 'Tech Conference', '2023-07-20', '2023-07-20 09:00:00', '2023-07-20 21:00:00', 2, 'Annual tech meetup'),\n"
+        f"    (3, 'Jazz Night', '2023-09-05', '2023-09-05 20:00:00', '2023-09-05 23:30:00', 3, 'Live jazz performance'),\n"
+        f"    (4, 'Startup Summit', '2023-06-10', '2023-06-10 10:00:00', '2023-06-10 18:30:00', 1, 'Startup pitch day'),\n"
+        f"    (5, 'Book Fair', '2024-01-12', '2024-01-12 10:00:00', '2024-01-12 22:00:00', 4, 'National book fair');",
+        f"INSERT INTO {P}_ticket (ticketid, eventid, userid, price, status, barcode, seatnumber) VALUES\n"
+        f"    (1, 1, 101, 150.00, 'confirmed', 'BC1001', 'A12'),\n"
+        f"    (2, 1, 102, 150.00, 'reserved',  'BC1002', 'A13'),\n"
+        f"    (3, 2, 103, 200.00, 'cancelled', 'BC1003', 'B05'),\n"
+        f"    (4, 3, 104, 120.00, 'confirmed', 'BC1004', 'C21'),\n"
+        f"    (5, 3, 105,  25.00, 'confirmed', 'BC1005', 'C22'),\n"
+        f"    (6, 4, 101,  90.00, 'reserved',  'BC1006', 'D07'),\n"
+        f"    (7, 2, 102,  28.50, 'confirmed', 'BC1007', 'B06'),\n"
+        f"    (8, 5, 103,  30.00, 'reserved',  'BC1008', 'E01');",
+    ],
+    "aim": "To execute the given commands making use of aggregate functions, "
+           "group by clause and order by clause.",
+    "desc": ("Aggregate functions take a collection of values and return a single "
+             "value as the result: SUM returns the total, AVG the average, COUNT "
+             "the number of tuples, and MIN and MAX the smallest and largest value "
+             "in the collection. SUM and AVG need numeric input, while COUNT, MIN "
+             "and MAX also work on non-numeric types. The DISTINCT keyword inside "
+             "an aggregate expression eliminates duplicates before the function is "
+             "applied. The GROUP BY clause applies an aggregate function to groups "
+             "of tuples — tuples sharing the same value on every attribute named in "
+             "the clause are placed in one group — and the ORDER BY clause returns "
+             "the result of a query in sorted order, ASC for ascending and DESC for "
+             "descending."),
+    "questions": [
+        (1, "List the number of users in the user table.",
+         [f"SELECT COUNT(*) AS total_users FROM {P}_users;"]),
+        (2, "List the number of events conducted during 2023.",
+         [f"SELECT COUNT(*) AS events_2023 FROM {P}_event\n"
+          f"WHERE eventdate BETWEEN '2023-01-01' AND '2023-12-31';"]),
+        (3, "Calculate the total price for the confirmed tickets.",
+         [f"SELECT SUM(price) AS confirmed_total FROM {P}_ticket\n"
+          f"WHERE status = 'confirmed';"]),
+        (4, "Find the minimum, maximum and average time taken for the given events.",
+         [f"SELECT MIN(endtime - eventtime) AS min_duration,\n"
+          f"       MAX(endtime - eventtime) AS max_duration,\n"
+          f"       AVG(endtime - eventtime) AS avg_duration\n"
+          f"FROM {P}_event;"]),
+        (5, "Retrieve distinct number of users.",
+         [f"SELECT COUNT(DISTINCT userid) AS distinct_users FROM {P}_ticket;"]),
+        (6, "List names of events was more than 10 hours.",
+         [f"SELECT name, endtime - eventtime AS duration FROM {P}_event\n"
+          f"WHERE endtime - eventtime > INTERVAL '10 hours';"]),
+        (7, "List the seat numbers of the users those whose tickets are confirmed.",
+         [f"SELECT userid, seatnumber FROM {P}_ticket\n"
+          f"WHERE status = 'confirmed' ORDER BY seatnumber;"]),
+        (8, "List user name and phone numbers those whose tickets reserved.",
+         [f"SELECT u.name, u.phone FROM {P}_users u, {P}_ticket t\n"
+          f"WHERE u.id = t.userid AND t.status = 'reserved';"]),
+        (9, "List the user details in the ascending order of their ticket price.",
+         [f"SELECT u.id, u.name, u.email, u.phone, t.price\n"
+          f"FROM {P}_users u, {P}_ticket t\n"
+          f"WHERE u.id = t.userid ORDER BY t.price ASC;"]),
+        (10, "Modify the ticket price of the user based on the following: "
+             "(a) if the price is greater than 30, give a concession of 2%; "
+             "(b) if the price is lesser than or equal to 30, give a concession of 4%.",
+         [f"SELECT ticketid, price FROM {P}_ticket ORDER BY ticketid;",
+          f"UPDATE {P}_ticket SET price = CASE\n"
+          f"    WHEN price > 30 THEN price * 0.98\n"
+          f"    ELSE price * 0.96\n"
+          f"END;",
+          f"SELECT ticketid, price FROM {P}_ticket ORDER BY ticketid;"]),
+        (11, "List the Venue name and address in each country.",
+         [f"SELECT country, name, address FROM {P}_location\n"
+          f"ORDER BY country, name;"]),
+        (12, "List all the city name in Alphabetical order.",
+         [f"SELECT city FROM {P}_location ORDER BY city ASC;"]),
+    ],
+}
+
+EXPERIMENTS = {"1a": EX1A, "2": EX2, "1b": EX1B, "3": EX3}
 
 
 def psql(cmd: str) -> str:
@@ -279,18 +406,25 @@ def format_cmd(cmd: str, out: str) -> list[str]:
     return lines
 
 
-def run_question(commands: list[str]) -> tuple[str, bytes]:
-    """Execute all commands of one question; return (code_text, screenshot)."""
+def code_text(commands: list[str]) -> str:
+    """The queries of one question as they belong in a record, not a transcript."""
+    return "\n".join(c.rstrip(";") + (";" if not c.startswith("\\") else "")
+                     for c in commands)
+
+
+def run_question(commands: list[str]) -> tuple[str, bytes, str]:
+    """Execute all commands of one question; return (code, screenshot, output)."""
     transcript: list[str] = []
+    outputs: list[str] = []
     for c in commands:
-        transcript += format_cmd(c, psql(c))
+        out = psql(c)
+        outputs.append(out)
+        transcript += format_cmd(c, out)
         transcript.append("")
     transcript.append(PROMPT)                       # trailing cursor prompt
     png = labshot.render_console_text("\n".join(transcript),
                                       title=f"psql — {DB}")
-    code_text = "\n".join(c.rstrip(";") + (";" if not c.startswith("\\") else "")
-                          for c in commands)
-    return code_text, png
+    return code_text(commands), png, "\n".join(outputs)
 
 
 def fill_docx(spec: dict, results: list[tuple[str, bytes]], out_path: Path) -> None:
@@ -422,6 +556,108 @@ def build_docx_scratch(spec: dict, results: list[tuple[str, str, bytes]], out_pa
     doc.save(str(out_path))
 
 
+# ---- record (mam's "dbms Record Template.docx") --------------------------
+# A different artefact from the output docx above: one 2x3 table, header row
+# = Ex No/Date | Title | Register Number, and a single merged body cell that
+# holds Aim / Description / Questions / Result. Everything below the header
+# goes INSIDE that one cell -- python-docx cells duck-type as documents for
+# add_paragraph, so assemble.add_code_block works on them unchanged.
+RECORD_GLOB = "*Record Template.docx"   # NB: the shipped filename has a double space
+REC_IMG_W = 6.3                         # body cell is 9776-216 twips = 6.64" wide
+
+
+def _clear_cell(cell):
+    for p in list(cell.paragraphs):
+        p._p.getparent().remove(p._p)
+    return cell
+
+
+def _cell_para(cell, text, *, bold=False, size=12, center=False, space_after=4):
+    p = cell.add_paragraph()
+    if center:
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.space_after = Pt(space_after)
+    r = p.add_run(text); r.bold = bold
+    r.font.name = FONT; r.font.size = Pt(size)
+    return p
+
+
+def build_record(spec: dict, results: list[tuple], out_path: Path) -> None:
+    """results: [(n, question_text, code, png_bytes)]"""
+    doc = Document(str(next(MATERIALS.glob(RECORD_GLOB))))
+    t = doc.tables[0]
+    head = t.rows[0].cells
+    for cell, lines in zip(head, (
+            [f"Ex. No. {spec['title'][2:]}", f"Date: {spec['date']}"],
+            [spec["name"]],          # kept upper-case: .title() mangles SQL/DML/DCL
+            [URK])):
+        _clear_cell(cell)
+        cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+        for line in lines:
+            _cell_para(cell, line, bold=True, size=14 if cell is head[1] else 12,
+                       center=True, space_after=2)
+
+    body = _clear_cell(t.rows[1].cells[0])
+    _cell_para(body, "Aim", bold=True, size=14, space_after=2)
+    _cell_para(body, spec["aim"], space_after=10)
+    _cell_para(body, "Description", bold=True, size=14, space_after=2)
+    _cell_para(body, spec["desc"], space_after=10)
+    _cell_para(body, "Questions", bold=True, size=14, space_after=6)
+    for n, qtext, code, png in results:
+        q = _cell_para(body, f"{n}. {qtext}", bold=True, space_after=3)
+        q.paragraph_format.keep_with_next = True
+        add_code_block(body, code)
+        p = body.add_paragraph(); p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p.paragraph_format.space_after = Pt(10)
+        p.add_run().add_picture(io.BytesIO(png), width=Inches(REC_IMG_W))
+    _cell_para(body, "Result", bold=True, size=14, space_after=2)
+    _cell_para(body, "The queries were executed and the desired output was obtained.")
+    doc.save(str(out_path))
+
+
+def to_pdf(paths: list[Path]) -> None:
+    """docx -> pdf through the installed Word. One instance for the whole batch."""
+    import win32com.client as win32
+    word = win32.DispatchEx("Word.Application")   # DispatchEx: own instance, so an
+    word.Visible = False                          # already-open Word isn't hijacked
+    word.DisplayAlerts = 0
+    try:
+        for p in paths:
+            src = p.resolve()                     # COM needs absolute paths
+            d = word.Documents.Open(str(src), ReadOnly=True, AddToRecentFiles=False)
+            d.SaveAs2(str(src.with_suffix(".pdf")), FileFormat=17)  # 17 = wdFormatPDF
+            d.Close(False)
+    finally:
+        word.Quit()
+
+
+def results_from_disk(spec: dict) -> list[tuple]:
+    """Rebuild (n, qtext, code, png) from the spec + already-captured shots, so a
+    record can be made without re-running (and re-dropping) the database."""
+    shots = HERE / "output" / spec["title"] / "screenshots"
+    qtext = spec.get("qtext")
+    out = []
+    for i, entry in enumerate(spec["questions"]):
+        n, text, cmds = entry if len(entry) == 3 else (entry[0], qtext[i], entry[1])
+        out.append((n, text, code_text(cmds), (shots / f"q{n:02d}.png").read_bytes()))
+    return out
+
+
+def write_commands(spec: dict, out_path: Path) -> None:
+    """Plain-text log of what was typed at the prompt, question text included."""
+    lines = [f"-- {spec['title']}: {spec['name']} — {URK}",
+             f"-- {COURSE} — {spec['date']}",
+             f"-- commands typed at the psql prompt ({DB}), in order", ""]
+    if spec.get("setup"):
+        lines += ["-- setup: schema and seed data (not one of the graded questions)"]
+        lines += spec["setup"] + [""]
+    qtext = spec.get("qtext")
+    for i, entry in enumerate(spec["questions"]):
+        n, text, cmds = entry if len(entry) == 3 else (entry[0], qtext[i], entry[1])
+        lines += [f"-- Q{n}. {text}"] + list(cmds) + [""]
+    out_path.write_text("\n".join(lines), encoding="utf8")
+
+
 def build(exp_key: str) -> Path:
     spec = EXPERIMENTS[exp_key]
     for t in spec["reset"]:
@@ -429,7 +665,7 @@ def build(exp_key: str) -> Path:
     for cmd in spec.get("setup", []):
         psql(cmd)  # silent schema/data setup, not one of the graded questions
 
-    outdir = Path(__file__).parent / "output" / spec["title"]
+    outdir = HERE / "output" / spec["title"]
     shots = outdir / "screenshots"; shots.mkdir(parents=True, exist_ok=True)
     results, sql_lines = [], []
     if spec.get("setup"):
@@ -438,22 +674,54 @@ def build(exp_key: str) -> Path:
     has_qtext = len(spec["questions"][0]) == 3
     for entry in spec["questions"]:
         n, qtext, cmds = entry if has_qtext else (entry[0], None, entry[1])
-        code, png = run_question(cmds)
+        code, png, out = run_question(cmds)
+        # cheap guard against the silent all-or-nothing INSERT failure that bit
+        # Exp2 -- a query answering nothing is as wrong as one that errors.
+        if spec.get("strict"):
+            assert "ERROR" not in out, f"Q{n} errored:\n{out}"
+            assert "(0 rows)" not in out, f"Q{n} returned no rows:\n{out}"
         (shots / f"q{n:02d}.png").write_bytes(png)
         results.append((n, qtext, code, png) if has_qtext else (code, png))
         sql_lines.append(f"-- {n}\n" + "\n".join(cmds))
     (outdir / f"{spec['title'].lower()}.sql").write_text(
         "\n\n".join(sql_lines), encoding="utf8")
+    write_commands(spec, outdir / f"{spec['title'].lower()}_commands.txt")
 
     docx_path = outdir / f"{spec['title']}_{URK}.docx"
     if "template_glob" in spec:
         fill_docx(spec, results, docx_path)
     else:
         build_docx_scratch(spec, results, docx_path)
+    rec_path = build_record_for(spec)
+    to_pdf([docx_path, rec_path])
     print("wrote", outdir)
-    print("  screenshots:", len(results), "| docx:", docx_path.name)
+    print("  screenshots:", len(results), "| docx+pdf:", docx_path.name)
+    print("  record:", rec_path)
     return outdir
 
 
+def build_record_for(spec: dict) -> Path:
+    """Record only -- reuses the screenshots already on disk, touches no DB."""
+    recdir = HERE / "records" / spec["title"]; recdir.mkdir(parents=True, exist_ok=True)
+    path = recdir / f"{spec['title']}_Record_{URK}.docx"
+    build_record(spec, results_from_disk(spec), path)
+    return path
+
+
 if __name__ == "__main__":
-    build(sys.argv[1] if len(sys.argv) > 1 else "1a")
+    a = sys.argv[1:] or ["1a"]
+    if a[0] == "docs":
+        # dbms_lab.py docs 1a 1b 2 -- record, commands.txt and both PDFs from the
+        # screenshots already on disk. Touches no database, so an experiment built
+        # earlier isn't re-run (build() drops its tables).
+        paths = []
+        for k in a[1:]:
+            spec = EXPERIMENTS[k]
+            outdir = HERE / "output" / spec["title"]
+            write_commands(spec, outdir / f"{spec['title'].lower()}_commands.txt")
+            paths += [outdir / f"{spec['title']}_{URK}.docx", build_record_for(spec)]
+        to_pdf(paths)
+        for p in paths:
+            print("wrote", p.with_suffix(".pdf"))
+    else:
+        build(a[0])

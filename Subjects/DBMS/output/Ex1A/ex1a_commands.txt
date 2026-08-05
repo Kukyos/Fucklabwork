@@ -1,0 +1,82 @@
+-- Ex1A: CREATING AND MANAGING TABLES — URK24CS1021
+-- 23CS2014 Database Systems Lab — 08/07/2026
+-- commands typed at the psql prompt (labdb), in order
+
+-- Q1. Create User, Event, Venue, and ticket tables based on the given schema.
+CREATE TABLE URK24CS1021_users (
+    userid numeric(10) PRIMARY KEY,
+    name varchar(255),
+    email varchar(255),
+    password varchar(255),
+    phone varchar(20)
+);
+CREATE TABLE URK24CS1021_venue (
+    venueid numeric(10) PRIMARY KEY,
+    name varchar(255),
+    address varchar(255),
+    city varchar(255),
+    state varchar(255),
+    country varchar(255)
+);
+CREATE TABLE URK24CS1021_event (
+    eventid numeric(10) PRIMARY KEY,
+    name varchar(255),
+    eventdate date,
+    eventtime timestamp,
+    venueid numeric(10),
+    description varchar(500)
+);
+CREATE TABLE URK24CS1021_ticket (
+    ticketid numeric(10) PRIMARY KEY,
+    eventid numeric(10) REFERENCES URK24CS1021_event(eventid),
+    userid numeric(10),
+    seatnumber varchar(20),
+    price numeric(10,2),
+    status varchar(50)
+);
+
+-- Q2. Describe the tables.
+\d URK24CS1021_users
+\d URK24CS1021_event
+\d URK24CS1021_venue
+\d URK24CS1021_ticket
+
+-- Q3. Alter the User table to add a new column Age.
+ALTER TABLE URK24CS1021_users ADD COLUMN age numeric(3);
+
+-- Q4. Drop the newly added column Age.
+ALTER TABLE URK24CS1021_users DROP COLUMN age;
+
+-- Q5. Rename the Venue table to Location.
+ALTER TABLE URK24CS1021_venue RENAME TO URK24CS1021_location;
+
+-- Q6. Modify the size of the Event table's Description column to 1000.
+ALTER TABLE URK24CS1021_event ALTER COLUMN description TYPE varchar(1000);
+
+-- Q7. Drop the SeatNumber column from the Ticket table.
+ALTER TABLE URK24CS1021_ticket DROP COLUMN seatnumber;
+
+-- Q8. Add a unique constraint on the Email column in the User table.
+ALTER TABLE URK24CS1021_users ADD CONSTRAINT users_email_uq UNIQUE (email);
+
+-- Q9. Rename the UserID column in the User table to ID.
+ALTER TABLE URK24CS1021_users RENAME COLUMN userid TO id;
+
+-- Q10. Modify the Ticket table to add a column named "Barcode" with a data type of VARCHAR(50).
+ALTER TABLE URK24CS1021_ticket ADD COLUMN barcode varchar(50);
+
+-- Q11. Modify the Name column in the Venue table to increase its maximum length to VARCHAR(300).
+ALTER TABLE URK24CS1021_location ALTER COLUMN name TYPE varchar(300);
+
+-- Q12. Add a foreign key constraint on the VenueID column in the Event table, referencing the Venue table.
+ALTER TABLE URK24CS1021_event ADD CONSTRAINT event_venue_fk
+    FOREIGN KEY (venueid) REFERENCES URK24CS1021_location(venueid);
+
+-- Q13. Add a CHECK constraint to check whether the UserID is between 101 and 105.
+ALTER TABLE URK24CS1021_users ADD CONSTRAINT users_id_chk CHECK (id BETWEEN 101 AND 105);
+
+-- Q14. Add a unique constraint to Phone column of the User table.
+ALTER TABLE URK24CS1021_users ADD CONSTRAINT users_phone_uq UNIQUE (phone);
+
+-- Q15. Truncate the user table.
+TRUNCATE TABLE URK24CS1021_users;

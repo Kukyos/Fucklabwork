@@ -5,8 +5,10 @@ into the same record layout dbms_lab.py uses for CS1021.
 
 Ex1B Q1 has no screenshot (he asked to leave it blank -- question text only).
 """
-import io
+import io, sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # Subjects/DBMS, for dbms_lab
 
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
