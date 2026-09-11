@@ -14,8 +14,9 @@ from sklearn.metrics import (silhouette_score, calinski_harabasz_score,
 
 sns.set_theme(style="whitegrid")
 plt.rcParams["figure.figsize"] = (7, 4.5)
-pd.set_option("display.width", 160)
+pd.set_option("display.width", 100)
 pd.set_option("display.max_columns", 20)
+pd.set_option("display.max_colwidth", 20)
 
 SEED = 1021  # my reg no, so every run samples and seeds the same way
 K = 3        # chosen in question 10, below
@@ -29,10 +30,10 @@ print(df[["User_ID", "Age", "Sleep_Duration", "Reaction_Time",
           "Cognitive_Score"]].head())
 
 # 2. Display the first 10 rows of the dataset
-print(df.head(10).to_string())
+print(df.head(10))
 
 # 3. Display the last 8 rows of the dataset
-print(df.tail(8).to_string())
+print(df.tail(8))
 
 # 4. Information about the dataset
 df.info()
@@ -51,7 +52,7 @@ for col in ["Gender", "Diet_Type", "Exercise_Frequency"]:
     print(col, "->", df[col].value_counts().to_dict())
 
 # 7. Statistical inferences
-print(df.describe().to_string())
+print(df.describe())
 print("\nMissing values in the whole file:", df.isnull().sum().sum())
 
 # 8. Data types
@@ -77,7 +78,7 @@ print("Sample shape :", num.shape)
 # mean "difference in caffeine" and nothing else
 X = StandardScaler().fit_transform(num)
 print("\nBefore scaling (mean / std):")
-print(num.agg(["mean", "std"]).round(2).to_string())
+print(num.agg(["mean", "std"]).round(2))
 print("\nAfter scaling, every column has mean 0 and std 1:",
       np.allclose(X.mean(axis=0), 0), np.allclose(X.std(axis=0), 1))
 
@@ -193,7 +194,7 @@ plt.show()
 # a cluster number means nothing on its own - look at the averages inside it
 profile = num.assign(cluster=labels["K-means"]).groupby("cluster").mean().round(2)
 profile["members"] = pd.Series(labels["K-means"]).value_counts().sort_index()
-print(profile.to_string())
+print(profile)
 
 # how far apart the centres are on each column - divided by that column's
 # own standard deviation, otherwise caffeine (0-500) would look important

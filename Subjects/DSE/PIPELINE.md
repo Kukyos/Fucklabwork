@@ -107,5 +107,10 @@ From Ex-5 the **question bank docx has no per-student table**: it's one common l
 - **Measure cluster-centre spread in standard deviations, not raw units**, or caffeine (0–500) looks important next to sleep (4–9) purely because its numbers are bigger. First draft got this wrong.
 - "Display the clusters" → PCA to 2D, one scatter panel per algorithm. Say in the video that PCA did no clustering — it only compresses 8D to 2D for drawing, and keeps well under half the variation.
 
+## Gotchas from Ex-5/6/7 (don't repeat)
+- **The CSVs are staged by hand, once, and committed.** Unlike Ex-4 (which `shutil.copyfile`d fanspeed.csv on every build), the Ex-5/6/7 builders only *read* `output/ExN/*.csv`. Delete one and the builder dies. The Kaggle zips were unpacked in a session scratchpad that is long gone, so re-staging means re-downloading with the no-auth API URL above. `Exp.extra_files` is the hook if this ever needs to be self-healing.
+- **Never use `.to_string()` on a wide DataFrame in a section.** `to_string()` ignores `display.width` and emits one 226-char line; `labshot` then hard-wraps it mid-value and the last column ends up orphaned on its own line (Ex-6's 17-column `head(10)` split `Class` into "Clas" / "s" / the digit). Plain `print(df.head(10))` lets pandas wrap into labelled blocks with backslash continuation markers, which is both readable and what a real terminal shows. Set `display.width=100` + `max_colwidth=20` in the preamble. Keep `.to_string()` only for narrow result tables where truncation is the worry.
+- **Don't label a plot "the best model" unless it plots the model the table calls best.** First draft of Ex-5 printed "Best R2: Polynomial" and then captioned a multiple-linear plot "best model". Name the model in the heading instead.
+
 ## To do more DSE experiments
 Pull Cleo's row from that experiment's `Dataset_N.xlsx` → download the Kaggle zip with the no-auth API URL above → write + run the Python → write a content-only `build_dse_ExN.py` against `dse_record.Exp` / `build`.

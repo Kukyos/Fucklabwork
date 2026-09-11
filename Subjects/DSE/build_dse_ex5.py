@@ -62,8 +62,9 @@ PREAMBLE = (
     "from sklearn.metrics import r2_score, root_mean_squared_error\n\n"
     'sns.set_theme(style="whitegrid")\n'
     'plt.rcParams["figure.figsize"] = (7, 4.5)\n'
-    'pd.set_option("display.width", 150)\n'
-    'pd.set_option("display.max_columns", 20)\n\n'
+    'pd.set_option("display.width", 100)\n'
+    'pd.set_option("display.max_columns", 20)\n'
+    'pd.set_option("display.max_colwidth", 20)\n\n'
     "SEED = 1021  # my reg no, so every run splits the same way\n"
     "results = []  # every model appends its scores here for the final table\n\n"
 )
@@ -77,10 +78,10 @@ SECTIONS: list[tuple[str, str]] = [
      'print(df[["house_type", "house_size", "location", "city", "price"]].head())'),
 
     ("2. Display the first 10 rows of the dataset",
-     'print(df.head(10).to_string())'),
+     'print(df.head(10))'),
 
     ("3. Display the last 8 rows of the dataset",
-     'print(df.tail(8).to_string())'),
+     'print(df.tail(8))'),
 
     ("4. Information about the dataset",
      'df.info()'),
@@ -98,7 +99,7 @@ SECTIONS: list[tuple[str, str]] = [
      'print(df["city"].value_counts())'),
 
     ("7. Statistical inferences",
-     'print(df.describe().to_string())\n'
+     'print(df.describe())\n'
      'print("\\nMissing values per column:")\n'
      'print(df.isnull().sum())'),
 
@@ -221,7 +222,9 @@ SECTIONS: list[tuple[str, str]] = [
      'plt.tight_layout()\n'
      'plt.show()'),
 
-    ("17. Predicted vs actual for the best model",
+    ("17. Predicted vs actual for the multiple linear model",
+     '# polynomial edges it on R2 by 0.0003, which is noise - so the plot uses\n'
+     '# the plain multiple linear model, the simplest of the ones that tied\n'
      'best = multi.predict(X_test)\n'
      'plt.scatter(y_test, best, s=8, alpha=0.3, color="#4C72B0")\n'
      'lims = [y_test.min(), y_test.max()]\n'

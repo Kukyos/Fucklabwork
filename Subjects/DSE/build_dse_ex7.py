@@ -62,8 +62,9 @@ PREAMBLE = (
     "                             davies_bouldin_score)\n\n"
     'sns.set_theme(style="whitegrid")\n'
     'plt.rcParams["figure.figsize"] = (7, 4.5)\n'
-    'pd.set_option("display.width", 160)\n'
-    'pd.set_option("display.max_columns", 20)\n\n'
+    'pd.set_option("display.width", 100)\n'
+    'pd.set_option("display.max_columns", 20)\n'
+    'pd.set_option("display.max_colwidth", 20)\n\n'
     "SEED = 1021  # my reg no, so every run samples and seeds the same way\n"
     "K = 3        # chosen in question 10, below\n"
     "results = []  # every algorithm appends its metrics here for the final table\n"
@@ -78,10 +79,10 @@ SECTIONS: list[tuple[str, str]] = [
      '          "Cognitive_Score"]].head())'),
 
     ("2. Display the first 10 rows of the dataset",
-     'print(df.head(10).to_string())'),
+     'print(df.head(10))'),
 
     ("3. Display the last 8 rows of the dataset",
-     'print(df.tail(8).to_string())'),
+     'print(df.tail(8))'),
 
     ("4. Information about the dataset",
      'df.info()'),
@@ -100,7 +101,7 @@ SECTIONS: list[tuple[str, str]] = [
      '    print(col, "->", df[col].value_counts().to_dict())'),
 
     ("7. Statistical inferences",
-     'print(df.describe().to_string())\n'
+     'print(df.describe())\n'
      'print("\\nMissing values in the whole file:", df.isnull().sum().sum())'),
 
     ("8. Data types",
@@ -124,7 +125,7 @@ SECTIONS: list[tuple[str, str]] = [
      '# mean "difference in caffeine" and nothing else\n'
      'X = StandardScaler().fit_transform(num)\n'
      'print("\\nBefore scaling (mean / std):")\n'
-     'print(num.agg(["mean", "std"]).round(2).to_string())\n'
+     'print(num.agg(["mean", "std"]).round(2))\n'
      'print("\\nAfter scaling, every column has mean 0 and std 1:",\n'
      '      np.allclose(X.mean(axis=0), 0), np.allclose(X.std(axis=0), 1))'),
 
@@ -234,7 +235,7 @@ SECTIONS: list[tuple[str, str]] = [
      '# a cluster number means nothing on its own - look at the averages inside it\n'
      'profile = num.assign(cluster=labels["K-means"]).groupby("cluster").mean().round(2)\n'
      'profile["members"] = pd.Series(labels["K-means"]).value_counts().sort_index()\n'
-     'print(profile.to_string())\n\n'
+     'print(profile)\n\n'
      '# how far apart the centres are on each column - divided by that column\'s\n'
      '# own standard deviation, otherwise caffeine (0-500) would look important\n'
      '# next to sleep (4-9) just because its numbers are bigger\n'

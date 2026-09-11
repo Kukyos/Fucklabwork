@@ -67,8 +67,9 @@ PREAMBLE = (
     "                             confusion_matrix)\n\n"
     'sns.set_theme(style="whitegrid")\n'
     'plt.rcParams["figure.figsize"] = (6.5, 5)\n'
-    'pd.set_option("display.width", 150)\n'
-    'pd.set_option("display.max_columns", 20)\n\n'
+    'pd.set_option("display.width", 100)\n'
+    'pd.set_option("display.max_columns", 20)\n'
+    'pd.set_option("display.max_colwidth", 20)\n\n'
     "SEED = 1021  # my reg no, so every run splits and seeds the same way\n"
     "results = []  # every classifier appends its scores here for the final table\n\n"
 )
@@ -110,10 +111,10 @@ SECTIONS: list[tuple[str, str]] = [
      'print(df[["Artist Name", "Track Name", "Popularity", "Class"]].head())'),
 
     ("2. Display the first 10 rows of the dataset",
-     'print(df.head(10).to_string())'),
+     'print(df.head(10))'),
 
     ("3. Display the last 8 rows of the dataset",
-     'print(df.tail(8).to_string())'),
+     'print(df.tail(8))'),
 
     ("4. Information about the dataset",
      'df.info()'),
@@ -131,7 +132,7 @@ SECTIONS: list[tuple[str, str]] = [
      'print("Largest class share:", round(df["Class"].value_counts(normalize=True).max(), 4))'),
 
     ("7. Statistical inferences",
-     'print(df.describe().to_string())'),
+     'print(df.describe())'),
 
     ("8. Data types",
      'print(df.dtypes)\n'

@@ -13,8 +13,9 @@ from sklearn.metrics import r2_score, root_mean_squared_error
 
 sns.set_theme(style="whitegrid")
 plt.rcParams["figure.figsize"] = (7, 4.5)
-pd.set_option("display.width", 150)
+pd.set_option("display.width", 100)
 pd.set_option("display.max_columns", 20)
+pd.set_option("display.max_colwidth", 20)
 
 SEED = 1021  # my reg no, so every run splits the same way
 results = []  # every model appends its scores here for the final table
@@ -27,10 +28,10 @@ print("Rows loaded:", len(df))
 print(df[["house_type", "house_size", "location", "city", "price"]].head())
 
 # 2. Display the first 10 rows of the dataset
-print(df.head(10).to_string())
+print(df.head(10))
 
 # 3. Display the last 8 rows of the dataset
-print(df.tail(8).to_string())
+print(df.tail(8))
 
 # 4. Information about the dataset
 df.info()
@@ -48,7 +49,7 @@ print("\nRows per city:")
 print(df["city"].value_counts())
 
 # 7. Statistical inferences
-print(df.describe().to_string())
+print(df.describe())
 print("\nMissing values per column:")
 print(df.isnull().sum())
 
@@ -184,7 +185,9 @@ plt.title("R2 by regression technique")
 plt.tight_layout()
 plt.show()
 
-# 17. Predicted vs actual for the best model
+# 17. Predicted vs actual for the multiple linear model
+# polynomial edges it on R2 by 0.0003, which is noise - so the plot uses
+# the plain multiple linear model, the simplest of the ones that tied
 best = multi.predict(X_test)
 plt.scatter(y_test, best, s=8, alpha=0.3, color="#4C72B0")
 lims = [y_test.min(), y_test.max()]
